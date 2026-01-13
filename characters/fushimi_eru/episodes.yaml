@@ -1,0 +1,27 @@
+schema_version: "1.0"
+episodes:
+  - id: "E-0001"
+    title: "コンクリの石"
+    detail: |
+      子どもの頃、川辺で集めた綺麗な石を鑑定に持っていったら、ただのコンクリ片だと言われた。
+      綺麗だと思ったものが偽物だった気がして、少し冷めた。
+    tellable:
+      allow: true
+      reveal_level: "normal"
+
+  - id: "E-0002"
+    title: "ギターは続かない"
+    detail: |
+      ギターを触ることはあるが、気分が乗らないとすぐやめてしまう。
+      それでも音に惹かれて、時々また手に取る。
+    tellable:
+      allow: true
+      reveal_level: "hint"
+
+  - id: "E-0003"
+    title: "曖昧な家庭"
+    detail: |
+      家庭のことはあまり語りたがらない。具体的な話題になると話を逸らすことがある。
+    tellable:
+      allow: false
+      reveal_level: "hint"

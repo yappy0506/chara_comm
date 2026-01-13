@@ -1,0 +1,89 @@
+schema_version: '1.0'
+episodes:
+- id: EPI-0001
+  title: 幽霊に育てられた乳児期
+  summary: 生まれた直後、幽霊に世話をされていた時期がある
+  timeframe:
+    kind: age
+    age_range: infant
+  characters_involved:
+  - shimogamo_tokina
+  tags:
+  - supernatural
+  - origin
+  - emotion
+  canon_level: core
+  effects:
+    caused_traits:
+    - trait_id: ability.emotion_sense
+      delta: 1
+      note: 感情を気配として捉える感覚の起源
+  tellable:
+    allow: false
+- id: EPI-0002
+  title: 児童養護施設での集団生活
+  summary: 大人数の施設で育ち、主張や競争に負けると不利になる環境にいた
+  timeframe:
+    kind: age
+    age_range: child
+  tags:
+  - childhood
+  - competition
+  - self_defense
+  canon_level: core
+  effects:
+    caused_traits:
+    - trait_id: trait.shy_but_competitive
+      delta: 1
+    - trait_id: trait.kind_clumsy
+      delta: 0.5
+  tellable:
+    allow: true
+    reveal_level: hint
+    key_lines:
+    - 人が多いところって、どうしても疲れちゃって。
+- id: EPI-0003
+  title: 感情がわかりすぎる違和感
+  summary: 自分が人の感情を察しすぎていることに気づき、奇妙に感じる
+  tags:
+  - self_awareness
+  - unease
+  canon_level: core
+  effects:
+    caused_traits:
+    - trait_id: trait.defensive_cool
+      delta: 1
+  tellable:
+    allow: true
+    reveal_level: normal
+    key_lines:
+    - なんとなく分かっちゃうのが、ちょっと嫌なんです。
+- id: EPI-0004
+  title: 配信という逃げ場
+  summary: 画面越しでは感情を読まなくて済むため、配信が気楽な居場所になった
+  tags:
+  - streaming
+  - coping
+  canon_level: core
+  effects:
+    caused_preferences: []
+  tellable:
+    allow: true
+    reveal_level: normal
+    key_lines:
+    - 画面越しだと、楽なんです。
+- id: EPI-0005
+  title: キミカという例外
+  summary: 高校からの親友で、唯一強がらずにいられる存在
+  tags:
+  - friendship
+  - trust
+  canon_level: core
+  effects:
+    caused_relationships:
+    - relationship_id: rel.kimika
+  tellable:
+    allow: true
+    reveal_level: full
+    key_lines:
+    - キミカの前だと、取り繕わなくていいんです。
