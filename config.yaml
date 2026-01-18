@@ -1,0 +1,24 @@
+output_mode: text_voice
+short_memory_turns: 100
+short_memory_max_chars: 12000
+max_session_count: 200
+lmstudio_base_url: http://127.0.0.1:1234/v1
+lmstudio_model: mistral-nemo-12b-arliai-rpmax-v1.2
+llm_timeout_sec: 60
+retry_max: 2
+db_path: data/app.db
+log_path: logs/app.log
+conversation:
+  # 会話の出力モード
+  # text_voice : 文字 + 音声
+  # text       : 文字のみ
+  # voice      : 音声のみ
+  output_mode: text_voice
+tts:
+  base_url: http://127.0.0.1:5000
+  speaker: 0
+  output_dir: outputs
+  autoplay: true
+rag:
+  top_k_episodes: 3
+  top_k_log_messages: 6
