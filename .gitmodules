@@ -1,0 +1,3 @@
+[submodule "chara_comm_specification"]
+	path = chara_comm_specification
+	url = https://github.com/yappy0506/chara_comm_specification.git
