@@ -7,9 +7,11 @@ from app.config.settings import load_settings, save_settings_to_yaml
 from app.infra.db import connect
 from app.infra.repositories import LogRepository
 from app.infra.lmstudio import health_check, try_start_lm_studio, guidance_message
+from app.infra.installer import ensure_style_bert_vits2_installed, StyleBertVits2InstallConfig
 from app.infra.llm_client import LlmClient, LlmClientConfig
 from app.infra.tts_client import TtsClient, TtsConfig
 from app.infra.audio_player import play_wav_best_effort
+from app.infra.tts_server import ensure_tts_server
 
 from app.domain.prompt_builder import PromptBuilder
 from app.domain.memory_manager import MemoryManager
@@ -58,7 +60,11 @@ def main() -> None:
     except Exception:
         char_name = session.character_id
 
-    memory = MemoryManager(short_memory_turns=st.short_memory_turns, short_memory_max_chars=st.short_memory_max_chars)
+    memory = MemoryManager(
+        short_memory_turns=st.short_memory_turns,
+        short_memory_max_chars=st.short_memory_max_chars,
+        short_memory_max_tokens=st.short_memory_max_tokens,
+    )
     prompt_builder = PromptBuilder()
 
     llm = LlmClient(
@@ -76,9 +82,13 @@ def main() -> None:
     except Exception as e:
         log.warning("restore short memory failed: %s", e)
 
-    # TTS setup (best-effort)
+    # TTS server enable (best-effort) + client setup
     tts_client = None
     if st.tts_base_url:
+        hs = ensure_tts_server(st.tts_base_url, st.tts_server_start_cmd, st.tts_server_cwd)
+        if not hs.ok:
+            print("[INFO] TTSサーバへ接続できません。音声出力は無効のまま続行します。")
+            print("[INFO] config.yaml の tts.base_url / tts.server_start_cmd を確認してください。")
         try:
             tts_client = TtsClient(TtsConfig(base_url=st.tts_base_url, speaker=st.tts_speaker, output_dir=st.tts_output_dir))
         except Exception:
@@ -107,7 +117,8 @@ def main() -> None:
             controller.info("/mode [text_voice|text|voice]  : 出力モード変更")
             controller.info("/config show                 : 現在の設定を表示")
             controller.info("/config set KEY VALUE        : 設定を変更（config.yamlへ保存）")
-            controller.info("   keys: output_mode, lmstudio_model, lmstudio_base_url, short_memory_turns, short_memory_max_chars")
+            controller.info("   keys: output_mode, lmstudio_model, lmstudio_base_url, short_memory_turns, short_memory_max_chars, short_memory_max_tokens")
+            controller.info("         tts_base_url, tts_speaker, tts_output_dir, tts_autoplay, tts_server_start_cmd, tts_server_cwd")
             return current_session, current_char_name
 
         if cmd == "new":
@@ -152,7 +163,10 @@ def main() -> None:
                 controller.info(f"lmstudio_model={conv.settings.lmstudio_model}")
                 controller.info(f"short_memory_turns={conv.settings.short_memory_turns}")
                 controller.info(f"short_memory_max_chars={conv.settings.short_memory_max_chars}")
+                controller.info(f"short_memory_max_tokens={conv.settings.short_memory_max_tokens}")
                 controller.info(f"tts_base_url={conv.settings.tts_base_url}")
+                controller.info(f"tts_server_start_cmd={conv.settings.tts_server_start_cmd}")
+                controller.info(f"tts_server_cwd={conv.settings.tts_server_cwd}")
                 controller.info(f"rag_top_k_episodes={conv.settings.rag_top_k_episodes}")
                 controller.info(f"rag_top_k_log_messages={conv.settings.rag_top_k_log_messages}")
             elif sub == "set" and len(args) >= 3:
@@ -160,13 +174,19 @@ def main() -> None:
                 val = " ".join(args[2:])
                 if key in ("output_mode", "lmstudio_base_url", "lmstudio_model"):
                     setattr(conv.settings, key, val)
-                elif key in ("short_memory_turns", "short_memory_max_chars", "max_session_count", "rag_top_k_episodes", "rag_top_k_log_messages", "tts_speaker"):
+                elif key in ("short_memory_turns", "short_memory_max_chars", "short_memory_max_tokens", "max_session_count", "rag_top_k_episodes", "rag_top_k_log_messages", "tts_speaker"):
                     try:
                         setattr(conv.settings, key, int(val))
                     except ValueError:
                         controller.error("value must be int")
                 elif key in ("tts_base_url", "tts_output_dir"):
                     setattr(conv.settings, key, val)
+                elif key in ("tts_server_cwd",):
+                    setattr(conv.settings, key, val)
+                elif key in ("tts_server_start_cmd",):
+                    # value is a command line; split by spaces (no shell). For paths with spaces, set in config.yaml directly.
+                    cmd_list = args[2:]
+                    conv.settings.tts_server_start_cmd = cmd_list
                 elif key in ("tts_autoplay",):
                     setattr(conv.settings, key, val.strip().lower() in ("1","true","yes","y","on"))
                 else:

@@ -30,3 +30,15 @@ LM Studio でモデルをロードし、Local Server(OpenAI互換API)を有効�
 
 
 デフォルトキャラクター: 下賀茂トキナ（shimogamo_tokina）
+
+
+## 初回起動時のTTSセットアップ
+初回起動時に `tts.bootstrap.enabled: true` の場合、`Style-Bert-VITS2` を `third_party/Style-Bert-VITS2` に取得し、依存関係を `pip install -r` で導入します（ネットワークと git が必要）。
+
+
+### JP-Extra（モデルデータ）の自動取得
+`tts.bootstrap.download_models: true` の場合、初回起動時に Style-Bert-VITS2 フォルダ内で `python initialize.py` を実行し、JP-Extraを含む事前学習モデル/デフォルトTTSモデルを自動取得します（大容量・ネットワーク必須）。
+
+
+### git の自動準備
+初回起動時、git が見つからない場合は Windows 環境では `winget` を用いて Git for Windows のインストールを試みます。失敗した場合は手動インストールを案内します。

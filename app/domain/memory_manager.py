@@ -11,6 +11,7 @@ ChatRole = Literal["user", "assistant"]
 class MemoryManager:
     short_memory_turns: int
     short_memory_max_chars: int
+    short_memory_max_tokens: int
     _by_session: dict[str, list[Message]] = field(default_factory=dict)
 
     def get_pairs(self, session_id: str) -> list[tuple[ChatRole, str]]:
@@ -21,14 +22,23 @@ class MemoryManager:
             elif m.role == "assistant":
                 pairs.append(("assistant", m.content))
 
-        # trim by char budget (best-effort)
-        if self.short_memory_max_chars > 0:
-            total = 0
+        # trim by budgets (best-effort)
+        # - chars
+        # - approx tokens (no tokenizer dependency): Japanese tends to be denser than English,
+        #   so we use a conservative heuristic.
+        max_chars = max(0, self.short_memory_max_chars)
+        max_tokens = max(0, self.short_memory_max_tokens)
+
+        if max_chars > 0 or max_tokens > 0:
+            total_chars = 0
+            total_tokens = 0
             kept: list[tuple[ChatRole, str]] = []
             for role, content in reversed(pairs):
-                total += len(content)
+                total_chars += len(content)
+                # heuristic: 1 token ~= 2 chars for JP / 4 chars for EN; use 3 as middle.
+                total_tokens += max(1, (len(content) // 3))
                 kept.append((role, content))
-                if total >= self.short_memory_max_chars:
+                if (max_chars > 0 and total_chars >= max_chars) or (max_tokens > 0 and total_tokens >= max_tokens):
                     break
             pairs = list(reversed(kept))
 
