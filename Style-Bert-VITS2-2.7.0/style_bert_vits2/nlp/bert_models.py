@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import gc
 import time
+from pathlib import Path
 from typing import TYPE_CHECKING, Optional, Union, cast
 
 from transformers import (
@@ -92,6 +93,14 @@ def load_model(
     # BERT モデルをロードし、辞書に格納して返す
     ## 英語のみ DebertaV2Model でロードする必要がある
     start_time = time.time()
+    use_safetensors = None
+    model_path = Path(pretrained_model_name_or_path)
+    if model_path.exists() and model_path.is_dir():
+        if (model_path / "model.safetensors").exists():
+            use_safetensors = True
+    model_kwargs = {}
+    if use_safetensors:
+        model_kwargs["use_safetensors"] = True
     if language == Languages.EN:
         __loaded_models[language] = cast(
             DebertaV2Model,
@@ -100,6 +109,7 @@ def load_model(
                 device_map=device_map,
                 cache_dir=cache_dir,
                 revision=revision,
+                **model_kwargs,
             ),
         )
     else:
@@ -108,6 +118,7 @@ def load_model(
             device_map=device_map,
             cache_dir=cache_dir,
             revision=revision,
+            **model_kwargs,
         )
     logger.info(
         f"Loaded the {language.name} BERT model from {pretrained_model_name_or_path} ({time.time() - start_time:.2f}s)"

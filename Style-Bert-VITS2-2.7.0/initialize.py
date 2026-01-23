@@ -5,8 +5,22 @@ from pathlib import Path
 
 import yaml
 from huggingface_hub import hf_hub_download
+from huggingface_hub.utils import EntryNotFoundError
 
 from style_bert_vits2.logging import logger
+
+
+def download_hf_file(
+    repo_id: str, filename: str, local_path: Path, allow_missing: bool = False
+) -> bool:
+    try:
+        hf_hub_download(repo_id, filename, local_dir=local_path)
+        return True
+    except EntryNotFoundError:
+        if allow_missing:
+            logger.warning(f"File not found on Hub: {repo_id}/{filename}")
+            return False
+        raise
 
 
 def download_bert_models():
@@ -14,18 +28,43 @@ def download_bert_models():
         models = json.load(fp)
     for k, v in models.items():
         local_path = Path("bert").joinpath(k)
+        safetensors_path = local_path / "model.safetensors"
+        safetensors_ready = safetensors_path.exists()
         for file in v["files"]:
+            if file == "pytorch_model.bin" and safetensors_ready:
+                logger.info(f"Skip {k} {file} (model.safetensors already exists)")
+                continue
             if not Path(local_path).joinpath(file).exists():
                 logger.info(f"Downloading {k} {file}")
-                hf_hub_download(v["repo_id"], file, local_dir=local_path)
+                ok = download_hf_file(
+                    v["repo_id"],
+                    file,
+                    local_path,
+                    allow_missing=(file == "model.safetensors"),
+                )
+                if ok and file == "model.safetensors":
+                    safetensors_ready = True
 
 
 def download_slm_model():
     local_path = Path("slm/wavlm-base-plus/")
-    file = "pytorch_model.bin"
-    if not Path(local_path).joinpath(file).exists():
-        logger.info(f"Downloading wavlm-base-plus {file}")
-        hf_hub_download("microsoft/wavlm-base-plus", file, local_dir=local_path)
+    safetensors_file = "model.safetensors"
+    bin_file = "pytorch_model.bin"
+    if Path(local_path).joinpath(safetensors_file).exists():
+        return
+    if not Path(local_path).joinpath(safetensors_file).exists():
+        logger.info(f"Downloading wavlm-base-plus {safetensors_file}")
+        ok = download_hf_file(
+            "microsoft/wavlm-base-plus",
+            safetensors_file,
+            local_path,
+            allow_missing=True,
+        )
+        if ok:
+            return
+    if not Path(local_path).joinpath(bin_file).exists():
+        logger.info(f"Downloading wavlm-base-plus {bin_file}")
+        download_hf_file("microsoft/wavlm-base-plus", bin_file, local_path)
 
 
 def download_pretrained_models():
