@@ -18,7 +18,7 @@ tts:
   server_start_cmd: []
   server_cwd: ''
   bootstrap:
-    enabled: true
+    enabled: false
     repo_url: https://github.com/litagin02/Style-Bert-VITS2.git
     repo_ref: main
     install_dir: third_party/Style-Bert-VITS2
