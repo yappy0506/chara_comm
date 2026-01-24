@@ -13,8 +13,12 @@ lmstudio:
 tts:
   base_url: http://127.0.0.1:5000
   speaker: 0
+  style: ''
   output_dir: outputs
   autoplay: true
+  timeout_sec: 30
+  retry_max: 2
+  text_limit: 200
   server_start_cmd: []
   server_cwd: ''
   bootstrap:

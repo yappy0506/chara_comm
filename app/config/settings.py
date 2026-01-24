@@ -31,8 +31,12 @@ class Settings:
     # tts
     tts_base_url: str | None
     tts_speaker: int
+    tts_style: str | None
     tts_output_dir: str
     tts_autoplay: bool
+    tts_timeout_sec: float
+    tts_retry_max: int
+    tts_text_limit: int
 
     # tts server (best-effort)
     tts_server_start_cmd: list[str]
@@ -167,8 +171,12 @@ def load_settings() -> Settings:
 
         tts_base_url=os.getenv("TTS_BASE_URL", str(tts_cfg.get("base_url", ""))) or None,
         tts_speaker=_get_int("TTS_SPEAKER", int(tts_cfg.get("speaker", 0))),
+        tts_style=os.getenv("TTS_STYLE", str(tts_cfg.get("style", ""))) or None,
         tts_output_dir=os.getenv("TTS_OUTPUT_DIR", str(tts_cfg.get("output_dir", "outputs"))),
         tts_autoplay=_get_bool("TTS_AUTOPLAY", bool(tts_cfg.get("autoplay", True))),
+        tts_timeout_sec=_get_float("TTS_TIMEOUT_SEC", float(tts_cfg.get("timeout_sec", 30.0))),
+        tts_retry_max=_get_int("TTS_RETRY_MAX", int(tts_cfg.get("retry_max", 2))),
+        tts_text_limit=_get_int("TTS_TEXT_LIMIT", int(tts_cfg.get("text_limit", 200))),
 
         tts_server_start_cmd=tts_start_cmd,
         tts_server_cwd=str(tts_cfg.get("server_cwd")) if tts_cfg.get("server_cwd") else None,
@@ -208,8 +216,12 @@ def save_settings_to_yaml(settings: Settings) -> None:
         "tts": {
             "base_url": settings.tts_base_url or "",
             "speaker": settings.tts_speaker,
+            "style": settings.tts_style or "",
             "output_dir": settings.tts_output_dir,
             "autoplay": settings.tts_autoplay,
+            "timeout_sec": settings.tts_timeout_sec,
+            "retry_max": settings.tts_retry_max,
+            "text_limit": settings.tts_text_limit,
             "server_start_cmd": settings.tts_server_start_cmd,
             "server_cwd": settings.tts_server_cwd or "",
         },
