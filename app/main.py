@@ -84,15 +84,37 @@ def main() -> None:
 
     # TTS server enable (best-effort) + client setup
     tts_client = None
-    if st.tts_base_url:
-        hs = ensure_tts_server(st.tts_base_url, st.tts_server_start_cmd, st.tts_server_cwd)
+
+    def refresh_tts_client() -> None:
+        nonlocal tts_client
+        tts_client = None
+        if not conv.settings.tts_base_url:
+            return
+        hs = ensure_tts_server(
+            conv.settings.tts_base_url,
+            conv.settings.tts_server_start_cmd,
+            conv.settings.tts_server_cwd,
+        )
         if not hs.ok:
             print("[INFO] TTSサーバへ接続できません。音声出力は無効のまま続行します。")
             print("[INFO] config.yaml の tts.base_url / tts.server_start_cmd を確認してください。")
+            return
         try:
-            tts_client = TtsClient(TtsConfig(base_url=st.tts_base_url, speaker=st.tts_speaker, output_dir=st.tts_output_dir))
+            tts_client = TtsClient(
+                TtsConfig(
+                    base_url=conv.settings.tts_base_url,
+                    speaker=conv.settings.tts_speaker,
+                    style=conv.settings.tts_style,
+                    output_dir=conv.settings.tts_output_dir,
+                    timeout_sec=conv.settings.tts_timeout_sec,
+                    retry_max=conv.settings.tts_retry_max,
+                    text_limit=conv.settings.tts_text_limit,
+                )
+            )
         except Exception:
             tts_client = None
+
+    refresh_tts_client()
 
     controller = CUIController(conv, session_service, memory)
     controller.info(f"session: {session.id} (character_id={session.character_id})")
@@ -111,14 +133,15 @@ def main() -> None:
             controller.error(f"tts: {type(e).__name__}: {e}")
 
     def on_command(cmd: str, args: list[str], current_session, current_char_name):
-        nonlocal session
+        nonlocal session, tts_client
 
         if cmd == "help":
             controller.info("/mode [text_voice|text|voice]  : 出力モード変更")
             controller.info("/config show                 : 現在の設定を表示")
             controller.info("/config set KEY VALUE        : 設定を変更（config.yamlへ保存）")
             controller.info("   keys: output_mode, lmstudio_model, lmstudio_base_url, short_memory_turns, short_memory_max_chars, short_memory_max_tokens")
-            controller.info("         max_session_count, tts_base_url, tts_speaker, tts_output_dir, tts_autoplay, tts_server_start_cmd, tts_server_cwd")
+            controller.info("         max_session_count, tts_base_url, tts_speaker, tts_style, tts_output_dir, tts_autoplay, tts_timeout_sec, tts_retry_max, tts_text_limit")
+            controller.info("         tts_server_start_cmd, tts_server_cwd")
             controller.info("         db_path, log_path")
             return current_session, current_char_name
 
@@ -167,6 +190,13 @@ def main() -> None:
                 controller.info(f"short_memory_max_tokens={conv.settings.short_memory_max_tokens}")
                 controller.info(f"max_session_count={conv.settings.max_session_count}")
                 controller.info(f"tts_base_url={conv.settings.tts_base_url}")
+                controller.info(f"tts_speaker={conv.settings.tts_speaker}")
+                controller.info(f"tts_style={conv.settings.tts_style}")
+                controller.info(f"tts_output_dir={conv.settings.tts_output_dir}")
+                controller.info(f"tts_autoplay={conv.settings.tts_autoplay}")
+                controller.info(f"tts_timeout_sec={conv.settings.tts_timeout_sec}")
+                controller.info(f"tts_retry_max={conv.settings.tts_retry_max}")
+                controller.info(f"tts_text_limit={conv.settings.tts_text_limit}")
                 controller.info(f"tts_server_start_cmd={conv.settings.tts_server_start_cmd}")
                 controller.info(f"tts_server_cwd={conv.settings.tts_server_cwd}")
                 controller.info(f"rag_top_k_episodes={conv.settings.rag_top_k_episodes}")
@@ -176,9 +206,22 @@ def main() -> None:
             elif sub == "set" and len(args) >= 3:
                 key = args[1]
                 val = " ".join(args[2:])
+                tts_keys = {
+                    "tts_base_url",
+                    "tts_speaker",
+                    "tts_style",
+                    "tts_output_dir",
+                    "tts_autoplay",
+                    "tts_timeout_sec",
+                    "tts_retry_max",
+                    "tts_text_limit",
+                    "tts_server_start_cmd",
+                    "tts_server_cwd",
+                }
+
                 if key in ("output_mode", "lmstudio_base_url", "lmstudio_model"):
                     setattr(conv.settings, key, val)
-                elif key in ("short_memory_turns", "short_memory_max_chars", "short_memory_max_tokens", "max_session_count", "rag_top_k_episodes", "rag_top_k_log_messages", "tts_speaker"):
+                elif key in ("short_memory_turns", "short_memory_max_chars", "short_memory_max_tokens", "max_session_count", "rag_top_k_episodes", "rag_top_k_log_messages", "tts_speaker", "tts_retry_max", "tts_text_limit"):
                     try:
                         setattr(conv.settings, key, int(val))
                     except ValueError:
@@ -186,8 +229,14 @@ def main() -> None:
                         return current_session, current_char_name
                     if key == "max_session_count":
                         repo.enforce_max_sessions(conv.settings.max_session_count)
-                elif key in ("tts_base_url", "tts_output_dir"):
+                elif key in ("tts_base_url", "tts_output_dir", "tts_style"):
                     setattr(conv.settings, key, val)
+                elif key in ("tts_timeout_sec",):
+                    try:
+                        setattr(conv.settings, key, float(val))
+                    except ValueError:
+                        controller.error("value must be float")
+                        return current_session, current_char_name
                 elif key in ("db_path", "log_path"):
                     setattr(conv.settings, key, val)
                 elif key in ("tts_server_cwd",):
@@ -203,6 +252,8 @@ def main() -> None:
                     return current_session, current_char_name
 
                 save_settings_to_yaml(conv.settings)
+                if key in tts_keys:
+                    refresh_tts_client()
                 controller.info("config saved")
             else:
                 controller.error("usage: /config show | /config set KEY VALUE")
