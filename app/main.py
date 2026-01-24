@@ -118,7 +118,8 @@ def main() -> None:
             controller.info("/config show                 : 現在の設定を表示")
             controller.info("/config set KEY VALUE        : 設定を変更（config.yamlへ保存）")
             controller.info("   keys: output_mode, lmstudio_model, lmstudio_base_url, short_memory_turns, short_memory_max_chars, short_memory_max_tokens")
-            controller.info("         tts_base_url, tts_speaker, tts_output_dir, tts_autoplay, tts_server_start_cmd, tts_server_cwd")
+            controller.info("         max_session_count, tts_base_url, tts_speaker, tts_output_dir, tts_autoplay, tts_server_start_cmd, tts_server_cwd")
+            controller.info("         db_path, log_path")
             return current_session, current_char_name
 
         if cmd == "new":
@@ -164,11 +165,14 @@ def main() -> None:
                 controller.info(f"short_memory_turns={conv.settings.short_memory_turns}")
                 controller.info(f"short_memory_max_chars={conv.settings.short_memory_max_chars}")
                 controller.info(f"short_memory_max_tokens={conv.settings.short_memory_max_tokens}")
+                controller.info(f"max_session_count={conv.settings.max_session_count}")
                 controller.info(f"tts_base_url={conv.settings.tts_base_url}")
                 controller.info(f"tts_server_start_cmd={conv.settings.tts_server_start_cmd}")
                 controller.info(f"tts_server_cwd={conv.settings.tts_server_cwd}")
                 controller.info(f"rag_top_k_episodes={conv.settings.rag_top_k_episodes}")
                 controller.info(f"rag_top_k_log_messages={conv.settings.rag_top_k_log_messages}")
+                controller.info(f"db_path={conv.settings.db_path}")
+                controller.info(f"log_path={conv.settings.log_path}")
             elif sub == "set" and len(args) >= 3:
                 key = args[1]
                 val = " ".join(args[2:])
@@ -179,7 +183,12 @@ def main() -> None:
                         setattr(conv.settings, key, int(val))
                     except ValueError:
                         controller.error("value must be int")
+                        return current_session, current_char_name
+                    if key == "max_session_count":
+                        repo.enforce_max_sessions(conv.settings.max_session_count)
                 elif key in ("tts_base_url", "tts_output_dir"):
+                    setattr(conv.settings, key, val)
+                elif key in ("db_path", "log_path"):
                     setattr(conv.settings, key, val)
                 elif key in ("tts_server_cwd",):
                     setattr(conv.settings, key, val)

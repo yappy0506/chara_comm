@@ -14,16 +14,23 @@
 拡張可能な対話コアとして設計されています。
 
 ## セットアップ
+本リポジトリでは `uv` を使用します。事前に以下を実行して `uv` を導入してください。
+
 ```powershell
-python -m venv .venv
-.\.venv\Scripts\activate
-pip install -r requirements.txt
-copy .env.example .env
+powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
+```
+
+セットアップ手順は `Setup.cmd` が自動で実行します。
+
+```powershell
+.\Setup.cmd
 ```
 
 ## 実行
+起動手順は `Run.cmd` が自動で実行します。
+
 ```powershell
-python -m app
+.\Run.cmd
 ```
 
 LM Studio でモデルをロードし、Local Server(OpenAI互換API)を有効化しておいてください。
@@ -31,14 +38,6 @@ LM Studio でモデルをロードし、Local Server(OpenAI互換API)を有効�
 
 デフォルトキャラクター: 下賀茂トキナ（shimogamo_tokina）
 
-
-## 初回起動時のTTSセットアップ
-初回起動時に `tts.bootstrap.enabled: true` の場合、`Style-Bert-VITS2` を `third_party/Style-Bert-VITS2` に取得し、依存関係を `pip install -r` で導入します（ネットワークと git が必要）。
-
-
-### JP-Extra（モデルデータ）の自動取得
-`tts.bootstrap.download_models: true` の場合、初回起動時に Style-Bert-VITS2 フォルダ内で `python initialize.py` を実行し、JP-Extraを含む事前学習モデル/デフォルトTTSモデルを自動取得します（大容量・ネットワーク必須）。
-
-
-### git の自動準備
-初回起動時、git が見つからない場合は Windows 環境では `winget` を用いて Git for Windows のインストールを試みます。失敗した場合は手動インストールを案内します。
+## Style-Bert-VITS2 のセットアップについて
+Style-Bert-VITS2 (ver.2.7.0) は本リポジトリに同梱されています。`Setup.cmd` では、
+`Style-Bert-VITS2-2.7.0` 内で `uv` を用いて依存関係とモデルを準備します。
