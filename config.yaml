@@ -7,29 +7,21 @@ session:
 lmstudio:
   base_url: http://127.0.0.1:1234/v1
   model: mistral-nemo-12b-arliai-rpmax-v1.2
-  timeout_sec: 60
+  timeout_sec: 60.0
   retry_max: 2
   exe_path: ''
 tts:
   base_url: http://127.0.0.1:5000
+  model_name: 'jvnv-F2-jp'
   speaker: 0
   style: ''
   output_dir: outputs
   autoplay: true
-  timeout_sec: 30
-  retry_max: 2
+  timeout_sec: 30.0
+  retry_max: 60
   text_limit: 200
   server_start_cmd: []
   server_cwd: ''
-  bootstrap:
-    enabled: false
-    repo_url: https://github.com/litagin02/Style-Bert-VITS2.git
-    repo_ref: main
-    install_dir: third_party/Style-Bert-VITS2
-    requirements_file: requirements.txt
-    marker_file: data/.style_bert_vits2_installed
-    download_models: true
-    models_marker_file: data/.style_bert_vits2_models_ready
 rag:
   top_k_episodes: 3
   top_k_log_messages: 6

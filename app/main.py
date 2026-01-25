@@ -103,6 +103,7 @@ def main() -> None:
             tts_client = TtsClient(
                 TtsConfig(
                     base_url=conv.settings.tts_base_url,
+                    model_name=conv.settings.tts_model_name,
                     speaker=conv.settings.tts_speaker,
                     style=conv.settings.tts_style,
                     output_dir=conv.settings.tts_output_dir,
@@ -141,7 +142,7 @@ def main() -> None:
             controller.info("/config set KEY VALUE        : 設定を変更（config.yamlへ保存）")
             controller.info("   keys: output_mode, lmstudio_model, lmstudio_base_url, short_memory_turns, short_memory_max_chars, short_memory_max_tokens")
             controller.info("         max_session_count, tts_base_url, tts_speaker, tts_style, tts_output_dir, tts_autoplay, tts_timeout_sec, tts_retry_max, tts_text_limit")
-            controller.info("         tts_server_start_cmd, tts_server_cwd")
+            controller.info("         tts_model_name, tts_server_start_cmd, tts_server_cwd")
             controller.info("         db_path, log_path")
             return current_session, current_char_name
 
@@ -190,6 +191,7 @@ def main() -> None:
                 controller.info(f"short_memory_max_tokens={conv.settings.short_memory_max_tokens}")
                 controller.info(f"max_session_count={conv.settings.max_session_count}")
                 controller.info(f"tts_base_url={conv.settings.tts_base_url}")
+                controller.info(f"tts_model_name={conv.settings.tts_model_name}")
                 controller.info(f"tts_speaker={conv.settings.tts_speaker}")
                 controller.info(f"tts_style={conv.settings.tts_style}")
                 controller.info(f"tts_output_dir={conv.settings.tts_output_dir}")
@@ -208,6 +210,7 @@ def main() -> None:
                 val = " ".join(args[2:])
                 tts_keys = {
                     "tts_base_url",
+                    "tts_model_name",
                     "tts_speaker",
                     "tts_style",
                     "tts_output_dir",
@@ -229,7 +232,7 @@ def main() -> None:
                         return current_session, current_char_name
                     if key == "max_session_count":
                         repo.enforce_max_sessions(conv.settings.max_session_count)
-                elif key in ("tts_base_url", "tts_output_dir", "tts_style"):
+                elif key in ("tts_base_url", "tts_output_dir", "tts_style", "tts_model_name"):
                     setattr(conv.settings, key, val)
                 elif key in ("tts_timeout_sec",):
                     try:

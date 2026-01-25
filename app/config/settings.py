@@ -30,6 +30,7 @@ class Settings:
 
     # tts
     tts_base_url: str | None
+    tts_model_name: str | None
     tts_speaker: int
     tts_style: str | None
     tts_output_dir: str
@@ -170,6 +171,7 @@ def load_settings() -> Settings:
         output_mode=os.getenv("OUTPUT_MODE", str(output_mode_cfg)),
 
         tts_base_url=os.getenv("TTS_BASE_URL", str(tts_cfg.get("base_url", ""))) or None,
+        tts_model_name=os.getenv("TTS_MODEL_NAME", str(tts_cfg.get("model_name", ""))) or None,
         tts_speaker=_get_int("TTS_SPEAKER", int(tts_cfg.get("speaker", 0))),
         tts_style=os.getenv("TTS_STYLE", str(tts_cfg.get("style", ""))) or None,
         tts_output_dir=os.getenv("TTS_OUTPUT_DIR", str(tts_cfg.get("output_dir", "outputs"))),
@@ -215,6 +217,7 @@ def save_settings_to_yaml(settings: Settings) -> None:
         },
         "tts": {
             "base_url": settings.tts_base_url or "",
+            "model_name": settings.tts_model_name or "",
             "speaker": settings.tts_speaker,
             "style": settings.tts_style or "",
             "output_dir": settings.tts_output_dir,

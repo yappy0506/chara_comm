@@ -9,6 +9,7 @@ import requests
 @dataclass(frozen=True)
 class TtsConfig:
     base_url: str
+    model_name: str | None = None
     speaker: int = 0
     style: str | None = None
     output_dir: str = "outputs"
@@ -36,6 +37,8 @@ class TtsClient:
 
         url = self.cfg.base_url.rstrip("/") + "/voice"
         params = {"text": text, "speaker_id": self.cfg.speaker}
+        if self.cfg.model_name:
+            params["model_name"] = self.cfg.model_name
         if self.cfg.style:
             params["style"] = self.cfg.style
 
