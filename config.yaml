@@ -1,0 +1,37 @@
+session:
+  output_mode: text_voice
+  short_memory_turns: 100
+  short_memory_max_chars: 12000
+  short_memory_max_tokens: 4096
+  max_session_count: 200
+lmstudio:
+  base_url: http://127.0.0.1:1234/v1
+  model: mistral-nemo-12b-arliai-rpmax-v1.2
+  # model: openai/gpt-oss-20b
+  timeout_sec: 60.0
+  retry_max: 2
+  exe_path: ''
+  temperature: 0.9
+  top_p: 0.9
+  max_tokens: 256
+  presence_penalty: 0.0
+  frequency_penalty: 0.0
+  repeat_retry_max: 1
+tts:
+  base_url: http://127.0.0.1:5000
+  model_name: 'jvnv-F2-jp'
+  speaker: 0
+  style: ''
+  output_dir: outputs
+  autoplay: true
+  timeout_sec: 30.0
+  retry_max: 60
+  text_limit: 200
+  server_start_cmd: []
+  server_cwd: ''
+rag:
+  top_k_episodes: 3
+  top_k_log_messages: 6
+paths:
+  db_path: data/app.db
+  log_path: logs/app.log

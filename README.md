@@ -14,19 +14,30 @@
 拡張可能な対話コアとして設計されています。
 
 ## セットアップ
+本リポジトリでは `uv` を使用します。事前に以下を実行して `uv` を導入してください。
+
 ```powershell
-python -m venv .venv
-.\.venv\Scripts\activate
-pip install -r requirements.txt
-copy .env.example .env
+powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
+```
+
+セットアップ手順は `Setup.cmd` が自動で実行します。
+
+```powershell
+.\Setup.cmd
 ```
 
 ## 実行
+起動手順は `Run.cmd` が自動で実行します。
+
 ```powershell
-python -m app
+.\Run.cmd
 ```
 
 LM Studio でモデルをロードし、Local Server(OpenAI互換API)を有効化しておいてください。
 
 
 デフォルトキャラクター: 下賀茂トキナ（shimogamo_tokina）
+
+## Style-Bert-VITS2 のセットアップについて
+Style-Bert-VITS2 (ver.2.7.0) は本リポジトリに同梱されています。`Setup.cmd` では、
+`Style-Bert-VITS2-2.7.0` 内で `uv` を用いて依存関係とモデルを準備します。

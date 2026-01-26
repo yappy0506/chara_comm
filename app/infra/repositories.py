@@ -87,3 +87,12 @@ class LogRepository:
                 meta=meta if isinstance(meta, dict) else {},
             ))
         return out
+
+
+def fetch_recent_message_texts(self, session_id: str, limit: int) -> list[tuple[str, str]]:
+    """Return (role, content) pairs for recent messages (newest first)."""
+    rows = self.conn.execute(
+        "SELECT role, content FROM messages WHERE session_id=? ORDER BY created_at DESC LIMIT ?",
+        (session_id, max(0, limit))
+    ).fetchall()
+    return [(r["role"], r["content"]) for r in rows]
