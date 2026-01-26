@@ -4,6 +4,9 @@ setlocal
 
 pushd %~dp0
 
+rem TTSサーバ起動時に別ターミナルを開くか (1: 開く / 0: 開かない)
+if not defined TTS_START_IN_NEW_WINDOW set "TTS_START_IN_NEW_WINDOW=1"
+
 if not exist Style-Bert-VITS2-2.7.0\venv\Scripts\python.exe (
   set "ERR_MSG=Style-Bert-VITS2-2.7.0 の仮想環境が見つかりません。Setup.cmd を先に実行してください。"
   goto fail
@@ -15,7 +18,11 @@ if not exist .venv\Scripts\python.exe (
 )
 
 echo [INFO] Style-Bert-VITS2 のAPIサーバを起動します...
-start "" /D "Style-Bert-VITS2-2.7.0" venv\Scripts\python.exe server_fastapi.py
+if /i "%TTS_START_IN_NEW_WINDOW%"=="1" (
+  start "TTS" /D "Style-Bert-VITS2-2.7.0" venv\Scripts\python.exe server_fastapi.py
+) else (
+  start "TTS" /B /D "Style-Bert-VITS2-2.7.0" venv\Scripts\python.exe server_fastapi.py
+)
 
 echo [INFO] TTSサーバの起動完了を待機します...
 set "TTS_HEALTH_URL=http://127.0.0.1:5000/docs"

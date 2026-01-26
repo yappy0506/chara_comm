@@ -10,16 +10,28 @@ class LlmClientConfig:
     model: str
     timeout_sec: float
     retry_max: int
+    temperature: float
+    top_p: float
+    max_tokens: int
+    presence_penalty: float
+    frequency_penalty: float
 
 class LlmClient:
     def __init__(self, cfg: LlmClientConfig):
         self.retry_max = cfg.retry_max
-        self.llm = ChatOpenAI(
-            base_url=cfg.base_url,
-            api_key="lm-studio",
-            model=cfg.model,
-            timeout=cfg.timeout_sec,
-        )
+        llm_kwargs: dict[str, object] = {
+            "base_url": cfg.base_url,
+            "api_key": "lm-studio",
+            "model": cfg.model,
+            "timeout": cfg.timeout_sec,
+            "temperature": cfg.temperature,
+            "top_p": cfg.top_p,
+            "presence_penalty": cfg.presence_penalty,
+            "frequency_penalty": cfg.frequency_penalty,
+        }
+        if cfg.max_tokens > 0:
+            llm_kwargs["max_tokens"] = cfg.max_tokens
+        self.llm = ChatOpenAI(**llm_kwargs)
 
     def chat(self, system_prompt: str, pairs: list[tuple[str,str]]) -> str:
         for attempt in Retrying(

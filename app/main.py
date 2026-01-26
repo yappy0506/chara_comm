@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
-from app.config.settings import load_settings, save_settings_to_yaml
+from app.config.settings import load_settings, save_settings_to_yaml, sync_llm_tts_limits
 from app.infra.db import connect
 from app.infra.repositories import LogRepository
 from app.infra.lmstudio import health_check, try_start_lm_studio, guidance_message
@@ -73,6 +73,11 @@ def main() -> None:
             model=st.lmstudio_model,
             timeout_sec=st.llm_timeout_sec,
             retry_max=st.retry_max,
+            temperature=st.llm_temperature,
+            top_p=st.llm_top_p,
+            max_tokens=st.llm_max_tokens,
+            presence_penalty=st.llm_presence_penalty,
+            frequency_penalty=st.llm_frequency_penalty,
         )
     )
 
@@ -100,6 +105,11 @@ def main() -> None:
             print("[INFO] config.yaml の tts.base_url / tts.server_start_cmd を確認してください。")
             return
         try:
+            effective_limit = conv.settings.tts_text_limit
+            if conv.settings.tts_server_limit and (
+                effective_limit <= 0 or effective_limit > conv.settings.tts_server_limit
+            ):
+                effective_limit = conv.settings.tts_server_limit
             tts_client = TtsClient(
                 TtsConfig(
                     base_url=conv.settings.tts_base_url,
@@ -109,7 +119,7 @@ def main() -> None:
                     output_dir=conv.settings.tts_output_dir,
                     timeout_sec=conv.settings.tts_timeout_sec,
                     retry_max=conv.settings.tts_retry_max,
-                    text_limit=conv.settings.tts_text_limit,
+                    text_limit=effective_limit,
                 )
             )
         except Exception:
@@ -127,9 +137,10 @@ def main() -> None:
         if not tts_client:
             return
         try:
-            wav = tts_client.synthesize_to_wav(text)
+            wavs = tts_client.synthesize_to_wavs(text)
             if conv.settings.tts_autoplay:
-                play_wav_best_effort(wav)
+                for wav in wavs:
+                    play_wav_best_effort(wav)
         except Exception as e:
             controller.error(f"tts: {type(e).__name__}: {e}")
 
@@ -140,7 +151,8 @@ def main() -> None:
             controller.info("/mode [text_voice|text|voice]  : 出力モード変更")
             controller.info("/config show                 : 現在の設定を表示")
             controller.info("/config set KEY VALUE        : 設定を変更（config.yamlへ保存）")
-            controller.info("   keys: output_mode, lmstudio_model, lmstudio_base_url, short_memory_turns, short_memory_max_chars, short_memory_max_tokens")
+            controller.info("   keys: output_mode, lmstudio_model, lmstudio_base_url, llm_temperature, llm_top_p, llm_max_tokens, llm_presence_penalty, llm_frequency_penalty, llm_repeat_retry_max")
+            controller.info("         short_memory_turns, short_memory_max_chars, short_memory_max_tokens")
             controller.info("         max_session_count, tts_base_url, tts_speaker, tts_style, tts_output_dir, tts_autoplay, tts_timeout_sec, tts_retry_max, tts_text_limit")
             controller.info("         tts_model_name, tts_server_start_cmd, tts_server_cwd")
             controller.info("         db_path, log_path")
@@ -186,6 +198,12 @@ def main() -> None:
                 controller.info(f"output_mode={conv.settings.output_mode}")
                 controller.info(f"lmstudio_base_url={conv.settings.lmstudio_base_url}")
                 controller.info(f"lmstudio_model={conv.settings.lmstudio_model}")
+                controller.info(f"llm_temperature={conv.settings.llm_temperature}")
+                controller.info(f"llm_top_p={conv.settings.llm_top_p}")
+                controller.info(f"llm_max_tokens={conv.settings.llm_max_tokens}")
+                controller.info(f"llm_presence_penalty={conv.settings.llm_presence_penalty}")
+                controller.info(f"llm_frequency_penalty={conv.settings.llm_frequency_penalty}")
+                controller.info(f"llm_repeat_retry_max={conv.settings.llm_repeat_retry_max}")
                 controller.info(f"short_memory_turns={conv.settings.short_memory_turns}")
                 controller.info(f"short_memory_max_chars={conv.settings.short_memory_max_chars}")
                 controller.info(f"short_memory_max_tokens={conv.settings.short_memory_max_tokens}")
@@ -199,6 +217,7 @@ def main() -> None:
                 controller.info(f"tts_timeout_sec={conv.settings.tts_timeout_sec}")
                 controller.info(f"tts_retry_max={conv.settings.tts_retry_max}")
                 controller.info(f"tts_text_limit={conv.settings.tts_text_limit}")
+                controller.info(f"tts_server_limit={conv.settings.tts_server_limit}")
                 controller.info(f"tts_server_start_cmd={conv.settings.tts_server_start_cmd}")
                 controller.info(f"tts_server_cwd={conv.settings.tts_server_cwd}")
                 controller.info(f"rag_top_k_episodes={conv.settings.rag_top_k_episodes}")
@@ -208,6 +227,7 @@ def main() -> None:
             elif sub == "set" and len(args) >= 3:
                 key = args[1]
                 val = " ".join(args[2:])
+                prev_tts_limit = conv.settings.tts_text_limit
                 tts_keys = {
                     "tts_base_url",
                     "tts_model_name",
@@ -224,7 +244,7 @@ def main() -> None:
 
                 if key in ("output_mode", "lmstudio_base_url", "lmstudio_model"):
                     setattr(conv.settings, key, val)
-                elif key in ("short_memory_turns", "short_memory_max_chars", "short_memory_max_tokens", "max_session_count", "rag_top_k_episodes", "rag_top_k_log_messages", "tts_speaker", "tts_retry_max", "tts_text_limit"):
+                elif key in ("short_memory_turns", "short_memory_max_chars", "short_memory_max_tokens", "max_session_count", "rag_top_k_episodes", "rag_top_k_log_messages", "tts_speaker", "tts_retry_max", "tts_text_limit", "llm_max_tokens", "llm_repeat_retry_max"):
                     try:
                         setattr(conv.settings, key, int(val))
                     except ValueError:
@@ -232,6 +252,12 @@ def main() -> None:
                         return current_session, current_char_name
                     if key == "max_session_count":
                         repo.enforce_max_sessions(conv.settings.max_session_count)
+                elif key in ("llm_temperature", "llm_top_p", "llm_presence_penalty", "llm_frequency_penalty"):
+                    try:
+                        setattr(conv.settings, key, float(val))
+                    except ValueError:
+                        controller.error("value must be float")
+                        return current_session, current_char_name
                 elif key in ("tts_base_url", "tts_output_dir", "tts_style", "tts_model_name"):
                     setattr(conv.settings, key, val)
                 elif key in ("tts_timeout_sec",):
@@ -254,8 +280,13 @@ def main() -> None:
                     controller.error("unknown key")
                     return current_session, current_char_name
 
+                if key == "tts_text_limit":
+                    sync_llm_tts_limits(conv.settings, source="tts")
+                elif key == "llm_max_tokens":
+                    sync_llm_tts_limits(conv.settings, source="llm")
+
                 save_settings_to_yaml(conv.settings)
-                if key in tts_keys:
+                if key in tts_keys or conv.settings.tts_text_limit != prev_tts_limit:
                     refresh_tts_client()
                 controller.info("config saved")
             else:
