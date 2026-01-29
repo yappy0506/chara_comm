@@ -210,7 +210,10 @@ def load_settings() -> Settings:
     )
 
     return Settings(
-        default_character_id=os.getenv("DEFAULT_CHARACTER_ID", "shimogamo_tokina"),
+        default_character_id=os.getenv(
+            "DEFAULT_CHARACTER_ID",
+            str(session_cfg.get("default_character_id", cfg.get("default_character_id", "shimogamo_tokina"))),
+        ),
         short_memory_turns=_get_int(
             "SHORT_MEMORY_TURNS",
             int(session_cfg.get("short_memory_turns", cfg.get("short_memory_turns", 100))),
@@ -309,6 +312,7 @@ def save_settings_to_yaml(settings: Settings) -> None:
     # v1.03 grouped config (non-secret)
     cfg = {
         "session": {
+            "default_character_id": settings.default_character_id,
             "output_mode": settings.output_mode,
             "short_memory_turns": settings.short_memory_turns,
             "short_memory_max_chars": settings.short_memory_max_chars,
