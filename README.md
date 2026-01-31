@@ -47,3 +47,6 @@ LM Studio でモデルをロードし、Local Server(OpenAI互換API)を有効�
 ## Style-Bert-VITS2 のセットアップについて
 Style-Bert-VITS2 (ver.2.7.0) は本リポジトリに同梱されています。`Setup.cmd` では、
 `Style-Bert-VITS2-2.7.0` 内で `uv` を用いて依存関係とモデルを準備します。
+
+本アプリケーションにおいて TTS は推論と音声出力のみに使用されます。
+マージや新規モデルの作成には対応していません。

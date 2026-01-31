@@ -55,6 +55,10 @@ def _parse_character_arg(argv: list[str]) -> str | None:
 
 
 def main() -> None:
+    parser = argparse.ArgumentParser(description="Character conversation app")
+    parser.add_argument("--character-id", help="起動時に使用するキャラクターID")
+    args = parser.parse_args()
+
     st = load_settings()
     _setup_logging(st.log_path)
     log = logging.getLogger("app")
@@ -186,6 +190,9 @@ def main() -> None:
             controller.info("         max_session_count, tts_base_url, tts_speaker, tts_style, tts_output_dir, tts_autoplay, tts_timeout_sec, tts_retry_max, tts_text_limit")
             controller.info("         tts_model_name, tts_server_start_cmd, tts_server_cwd")
             controller.info("         db_path, log_path")
+            controller.info("/character show              : 現在のキャラクターを表示")
+            controller.info("/character list              : キャラクター一覧を表示")
+            controller.info("/character set <ID>          : キャラクターを切り替え")
             return current_session, current_char_name
 
         if cmd == "new":
@@ -221,6 +228,7 @@ def main() -> None:
         if cmd == "config":
             sub = args[0] if args else ""
             if sub == "show" or sub == "":
+                controller.info(f"default_character_id={conv.settings.default_character_id}")
                 controller.info(f"output_mode={conv.settings.output_mode}")
                 controller.info(f"lmstudio_base_url={conv.settings.lmstudio_base_url}")
                 controller.info(f"lmstudio_model={conv.settings.lmstudio_model}")
@@ -268,7 +276,7 @@ def main() -> None:
                     "tts_server_cwd",
                 }
 
-                if key in ("output_mode", "lmstudio_base_url", "lmstudio_model"):
+                if key in ("output_mode", "lmstudio_base_url", "lmstudio_model", "default_character_id"):
                     setattr(conv.settings, key, val)
                 elif key in ("short_memory_turns", "short_memory_max_chars", "short_memory_max_tokens", "max_session_count", "rag_top_k_episodes", "rag_top_k_log_messages", "tts_speaker", "tts_retry_max", "tts_text_limit", "llm_max_tokens", "llm_repeat_retry_max"):
                     try:
