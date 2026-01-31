@@ -33,6 +33,12 @@ powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
 .\Run.cmd
 ```
 
+キャラクターを指定して起動する場合は `--character` オプションを利用します。
+
+```powershell
+.\Run.cmd --character kanya_kibuni
+```
+
 LM Studio でモデルをロードし、Local Server(OpenAI互換API)を有効化しておいてください。
 
 

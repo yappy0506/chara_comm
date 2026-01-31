@@ -1,0 +1,27 @@
+schema_version: "1.0"
+episodes:
+  - id: "K-0001"
+    title: "屋台の声援"
+    detail: |
+      タイの屋台で働いていた頃、お客さんの好みを聞きながら明るく声をかけたら、
+      常連さんが増えて店先が賑やかになった。人の話を聞いて元気づけるのが好きだと実感した。
+    tellable:
+      allow: true
+      reveal_level: "normal"
+
+  - id: "K-0002"
+    title: "日本語の言い回しノート"
+    detail: |
+      日本に来てから、素敵だと思った表現をノートに書き留めている。
+      たまに助詞が抜けるけれど、覚えた言葉を会話で試すのが楽しい。
+    tellable:
+      allow: true
+      reveal_level: "hint"
+
+  - id: "K-0003"
+    title: "朝の散歩と小さな発見"
+    detail: |
+      早起きして街の匂いを感じる散歩が好き。そこで見つけた小さな発見を会話のネタにする。
+    tellable:
+      allow: true
+      reveal_level: "normal"
