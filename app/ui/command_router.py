@@ -22,7 +22,7 @@ def route(line: str) -> RoutedInput:
         cmd = parts[0] if parts else ""
         args = parts[1:] if len(parts) > 1 else []
         # known commands
-        if cmd in ("exit", "new", "reset", "save", "mode", "config", "help"):
+        if cmd in ("exit", "new", "reset", "save", "mode", "config", "help", "character"):
             return RoutedInput(is_command=True, command=cmd, args=args, text="")
 
     return RoutedInput(is_command=False, text=raw)

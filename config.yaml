@@ -1,4 +1,5 @@
 session:
+  default_character_id: shimogamo_tokina
   output_mode: text_voice
   short_memory_turns: 100
   short_memory_max_chars: 12000

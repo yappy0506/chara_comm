@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import argparse
 from pathlib import Path
 
 from app.config.settings import load_settings, save_settings_to_yaml, sync_llm_tts_limits
@@ -31,7 +32,29 @@ def _setup_logging(log_path: str) -> None:
     )
 
 
+def _list_character_ids(characters_dir: str) -> list[str]:
+    base = Path(characters_dir)
+    if not base.exists():
+        return []
+    return sorted([p.name for p in base.iterdir() if p.is_dir()])
+
+
+def _resolve_character_name(characters_dir: str, character_id: str) -> str:
+    try:
+        bundle = load_character(characters_dir, character_id)
+        name = bundle.profile.get("name")
+        if isinstance(bundle.profile.get("character"), dict):
+            name = name or bundle.profile["character"].get("name")
+        return name or character_id
+    except Exception:
+        return character_id
+
+
 def main() -> None:
+    parser = argparse.ArgumentParser(description="Character conversation app")
+    parser.add_argument("--character-id", help="起動時に使用するキャラクターID")
+    args = parser.parse_args()
+
     st = load_settings()
     _setup_logging(st.log_path)
     log = logging.getLogger("app")
@@ -51,14 +74,20 @@ def main() -> None:
         print("[INFO] " + guidance_message(st.lmstudio_base_url))
 
     session_service = SessionService(repo=repo, default_character_id=st.default_character_id)
-    session = session_service.resume_or_create()
+    character_ids = _list_character_ids("characters")
+    if args.character_id:
+        if args.character_id not in character_ids:
+            print(f"[ERROR] character_id が見つかりません: {args.character_id}")
+            if character_ids:
+                print("[INFO] 利用可能なキャラクター: " + ", ".join(character_ids))
+            session = session_service.resume_or_create()
+        else:
+            session = session_service.create_new(args.character_id)
+            repo.enforce_max_sessions(st.max_session_count)
+    else:
+        session = session_service.resume_or_create()
 
-    # resolve character name
-    try:
-        bundle = load_character("characters", session.character_id)
-        char_name = (bundle.profile.get("character", {}).get("name") or session.character_id)
-    except Exception:
-        char_name = session.character_id
+    char_name = _resolve_character_name("characters", session.character_id)
 
     memory = MemoryManager(
         short_memory_turns=st.short_memory_turns,
@@ -129,7 +158,7 @@ def main() -> None:
 
     controller = CUIController(conv, session_service, memory)
     controller.info(f"session: {session.id} (character_id={session.character_id})")
-    controller.info("commands: /help /exit /new /reset /save /mode /config")
+    controller.info("commands: /help /exit /new /reset /save /mode /config /character")
 
     def on_voice(text: str) -> None:
         if conv.settings.output_mode == "text":
@@ -151,11 +180,14 @@ def main() -> None:
             controller.info("/mode [text_voice|text|voice]  : 出力モード変更")
             controller.info("/config show                 : 現在の設定を表示")
             controller.info("/config set KEY VALUE        : 設定を変更（config.yamlへ保存）")
-            controller.info("   keys: output_mode, lmstudio_model, lmstudio_base_url, llm_temperature, llm_top_p, llm_max_tokens, llm_presence_penalty, llm_frequency_penalty, llm_repeat_retry_max")
+            controller.info("   keys: default_character_id, output_mode, lmstudio_model, lmstudio_base_url, llm_temperature, llm_top_p, llm_max_tokens, llm_presence_penalty, llm_frequency_penalty, llm_repeat_retry_max")
             controller.info("         short_memory_turns, short_memory_max_chars, short_memory_max_tokens")
             controller.info("         max_session_count, tts_base_url, tts_speaker, tts_style, tts_output_dir, tts_autoplay, tts_timeout_sec, tts_retry_max, tts_text_limit")
             controller.info("         tts_model_name, tts_server_start_cmd, tts_server_cwd")
             controller.info("         db_path, log_path")
+            controller.info("/character show              : 現在のキャラクターを表示")
+            controller.info("/character list              : キャラクター一覧を表示")
+            controller.info("/character set <ID>          : キャラクターを切り替え")
             return current_session, current_char_name
 
         if cmd == "new":
@@ -195,6 +227,7 @@ def main() -> None:
         if cmd == "config":
             sub = args[0] if args else ""
             if sub == "show" or sub == "":
+                controller.info(f"default_character_id={conv.settings.default_character_id}")
                 controller.info(f"output_mode={conv.settings.output_mode}")
                 controller.info(f"lmstudio_base_url={conv.settings.lmstudio_base_url}")
                 controller.info(f"lmstudio_model={conv.settings.lmstudio_model}")
@@ -242,7 +275,7 @@ def main() -> None:
                     "tts_server_cwd",
                 }
 
-                if key in ("output_mode", "lmstudio_base_url", "lmstudio_model"):
+                if key in ("output_mode", "lmstudio_base_url", "lmstudio_model", "default_character_id"):
                     setattr(conv.settings, key, val)
                 elif key in ("short_memory_turns", "short_memory_max_chars", "short_memory_max_tokens", "max_session_count", "rag_top_k_episodes", "rag_top_k_log_messages", "tts_speaker", "tts_retry_max", "tts_text_limit", "llm_max_tokens", "llm_repeat_retry_max"):
                     try:
@@ -292,6 +325,36 @@ def main() -> None:
             else:
                 controller.error("usage: /config show | /config set KEY VALUE")
             return current_session, current_char_name
+
+        if cmd == "character":
+            sub = args[0] if args else ""
+            if sub in ("", "show"):
+                controller.info(f"current_character_id={current_session.character_id}")
+                controller.info(f"current_character_name={current_char_name}")
+                return current_session, current_char_name
+            if sub == "list":
+                if character_ids:
+                    controller.info("characters: " + ", ".join(character_ids))
+                else:
+                    controller.error("キャラクターが見つかりません")
+                return current_session, current_char_name
+
+            if sub in ("set", "switch") and len(args) >= 2:
+                target_id = args[1]
+            else:
+                target_id = sub
+
+            if target_id not in character_ids:
+                controller.error(f"character_id が見つかりません: {target_id}")
+                if character_ids:
+                    controller.info("利用可能なキャラクター: " + ", ".join(character_ids))
+                return current_session, current_char_name
+
+            session = session_service.create_new(target_id)
+            repo.enforce_max_sessions(conv.settings.max_session_count)
+            current_char_name = _resolve_character_name("characters", session.character_id)
+            controller.info(f"character switched: {session.character_id}")
+            return session, current_char_name
 
         return current_session, current_char_name
 
