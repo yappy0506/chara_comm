@@ -1,5 +1,8 @@
-@echo off
+﻿@echo off
 setlocal
+for /f "tokens=2 delims=:" %%A in ('chcp') do set "OLDCP=%%A"
+set "OLDCP=%OLDCP: =%"
+chcp 65001 >nul
 
 pushd %~dp0
 
@@ -10,7 +13,7 @@ if not exist venv (
 )
 call venv\Scripts\activate.bat
 uv pip install "torch<2.4" "torchaudio<2.4" --index-url https://download.pytorch.org/whl/cu118
-uv pip install -r requirements.txt
+uv pip install -r requirements-infer.txt
 python initialize.py
 call venv\Scripts\deactivate.bat
 popd
@@ -29,4 +32,6 @@ call .venv\Scripts\deactivate.bat
 popd
 
 echo [INFO] セットアップが完了しました。
+if defined OLDCP chcp %OLDCP% >nul
 endlocal
+
