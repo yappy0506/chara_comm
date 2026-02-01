@@ -42,7 +42,7 @@ goto wait_tts
 echo [INFO] TTSサーバの起動を確認しました。
 
 echo [INFO] アプリケーションを起動します...
-.venv\Scripts\python.exe -m app
+.venv\Scripts\python.exe -m app %*
 if errorlevel 1 (
   set "ERR_MSG=アプリケーションがエラーで終了しました。ログを確認してください。"
   goto fail
