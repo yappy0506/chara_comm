@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import importlib
 from pathlib import Path
 import queue
 import subprocess
@@ -63,11 +64,27 @@ def _run_whisper_cpp(cfg: VoiceInputConfig, wav_path: Path) -> str:
 
 
 def capture_and_transcribe(cfg: VoiceInputConfig) -> str:
-    try:
-        import sounddevice as sd
-        import webrtcvad
-    except Exception as exc:
-        raise RuntimeError(f"音声入力の依存関係が不足しています: {type(exc).__name__}") from exc
+    missing: list[str] = []
+    for module_name in ("sounddevice", "webrtcvad"):
+        try:
+            importlib.import_module(module_name)
+        except ModuleNotFoundError:
+            missing.append(module_name)
+        except Exception as exc:
+            raise RuntimeError(
+                f"音声入力の初期化に失敗しました: {module_name} ({type(exc).__name__}: {exc})"
+            ) from exc
+    if missing:
+        missing_str = ", ".join(missing)
+        raise RuntimeError(
+            "音声入力の依存関係が不足しています: "
+            f"{missing_str}. "
+            "セットアップを再実行するか、次を実行してください: "
+            ".venv\\Scripts\\python -m pip install -r requirements.txt"
+        )
+
+    import sounddevice as sd
+    import webrtcvad
 
     vad = webrtcvad.Vad(cfg.vad_mode)
     frame_ms = 30
