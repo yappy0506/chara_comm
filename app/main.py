@@ -414,6 +414,7 @@ def main() -> None:
             return voice_mode
 
         def on_voice_input() -> str:
+            nonlocal voice_mode
             cfg = VoiceInputConfig(
                 sample_rate=conv.settings.voice_sample_rate,
                 channels=conv.settings.voice_channels,
@@ -433,6 +434,9 @@ def main() -> None:
                 text = capture_and_transcribe(cfg)
             except Exception as e:
                 controller.error(f"voice input failed: {type(e).__name__}: {e}")
+                if voice_mode:
+                    voice_mode = False
+                    controller.info("voice mode: OFF (voice input error)")
                 return ""
             if not text:
                 controller.info("voice input: 文字起こし結果が空でした。")
