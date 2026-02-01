@@ -44,9 +44,19 @@ LM Studio でモデルをロードし、Local Server(OpenAI互換API)を有効�
 
 デフォルトキャラクター: 下賀茂トキナ（shimogamo_tokina）
 
+## 音声入力（マイク→whisper.cpp）
+音声入力は `/voice on` で常時受付モードに入り、`/voice off` で停止します。`sounddevice` と `webrtcvad`、そして `whisper.cpp` の実行ファイルが必要です。
+
+1. whisper.cpp をビルドし、モデルを用意する  
+2. `config.yaml` の `voice_input.whisper_cpp_path` と `voice_input.whisper_model_path` を設定する  
+3. アプリ起動後に `/voice on` を入力する
+
+音声入力は VAD（無音 1 秒）で終了し、文字起こし後に末尾へ `。` を補完します。
+入力音声・ASRログの保存は `voice_input.save_audio` / `voice_input.save_log` を `true` にすることで有効化できます。
+
 ## Style-Bert-VITS2 のセットアップについて
 Style-Bert-VITS2 (ver.2.7.0) は本リポジトリに同梱されています。`Setup.cmd` では、
 `Style-Bert-VITS2-2.7.0` 内で `uv` を用いて依存関係とモデルを準備します。
 
 本アプリケーションにおいて TTS は推論と音声出力のみに使用されます。
-マージや新規モデルの作成には対応していません。
+マージや新規モデルの作成には対応していません。音声はデフォルトで保存しません（必要に応じて `tts.save_audio=true` を設定してください）。

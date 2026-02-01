@@ -34,18 +34,29 @@ class CUIController:
         sys.stdout.write(f"{char_name}: {utterance}\n")
         sys.stdout.flush()
 
-    def run(self, session: Session, char_name: str, on_command, on_voice) -> None:
+    def run(
+        self,
+        session: Session,
+        char_name: str,
+        on_command,
+        on_voice,
+        voice_mode_enabled,
+        on_voice_input,
+    ) -> None:
         while True:
-            line = self.prompt(char_name)
-            ri = route(line)
-            if ri.is_command:
-                if ri.command == "exit":
-                    self.info("bye")
-                    return
-                session, char_name = on_command(ri.command or "", ri.args or [], session, char_name)
-                continue
-
-            text = ri.text.strip()
+            if voice_mode_enabled():
+                text = on_voice_input() or ""
+            else:
+                line = self.prompt(char_name)
+                ri = route(line)
+                if ri.is_command:
+                    if ri.command == "exit":
+                        self.info("bye")
+                        return
+                    session, char_name = on_command(ri.command or "", ri.args or [], session, char_name)
+                    continue
+                text = ri.text
+            text = text.strip()
             if not text:
                 continue
 

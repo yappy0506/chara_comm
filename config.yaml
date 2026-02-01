@@ -28,11 +28,25 @@ tts:
   timeout_sec: 30.0
   retry_max: 60
   text_limit: 200
+  save_audio: false
   server_start_cmd: []
   server_cwd: ''
 rag:
   top_k_episodes: 3
   top_k_log_messages: 6
+voice_input:
+  sample_rate: 16000
+  channels: 1
+  vad_mode: 2
+  vad_silence_ms: 1000
+  max_record_ms: 15000
+  whisper_cpp_path: ''
+  whisper_model_path: ''
+  language: ja
+  save_audio: false
+  save_log: false
+  audio_output_dir: inputs
+  log_output_dir: logs/asr
 paths:
   db_path: data/app.db
   log_path: logs/app.log

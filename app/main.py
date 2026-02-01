@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import argparse
 import logging
 import sys
 from pathlib import Path
@@ -13,6 +14,7 @@ from app.infra.llm_client import LlmClient, LlmClientConfig
 from app.infra.tts_client import TtsClient, TtsConfig
 from app.infra.audio_player import play_wav_best_effort
 from app.infra.tts_server import ensure_tts_server
+from app.infra.voice_input import VoiceInputConfig, capture_and_transcribe
 
 from app.domain.prompt_builder import PromptBuilder
 from app.domain.memory_manager import MemoryManager
@@ -151,6 +153,7 @@ def main() -> None:
                     timeout_sec=conv.settings.tts_timeout_sec,
                     retry_max=conv.settings.tts_retry_max,
                     text_limit=effective_limit,
+                    save_audio=conv.settings.tts_save_audio,
                 )
             )
         except Exception:
@@ -160,7 +163,8 @@ def main() -> None:
 
     controller = CUIController(conv, session_service, memory)
     controller.info(f"session: {session.id} (character_id={session.character_id})")
-    controller.info("commands: /help /exit /new /reset /save /mode /config /character")
+    controller.info("commands: /help /exit /new /reset /save /mode /config /character /voice")
+    voice_mode = False
 
     def on_voice(text: str) -> None:
         if conv.settings.output_mode == "text":
@@ -176,7 +180,7 @@ def main() -> None:
             controller.error(f"tts: {type(e).__name__}: {e}")
 
     def on_command(cmd: str, args: list[str], current_session, current_char_name):
-        nonlocal session, tts_client
+        nonlocal session, tts_client, voice_mode
 
         if cmd == "help":
             controller.info("/mode [text_voice|text|voice]  : 出力モード変更")
@@ -185,11 +189,15 @@ def main() -> None:
             controller.info("/character list              : 利用可能なキャラクター一覧")
             controller.info("/character set ID            : キャラクター変更（新規セッション）")
             controller.info("/character show              : 現在のキャラクターIDを表示")
+            controller.info("/voice on|off                 : 音声入力モードの開始/停止（whisper.cpp利用）")
             controller.info("   keys: output_mode, lmstudio_model, lmstudio_base_url, llm_temperature, llm_top_p, llm_max_tokens, llm_presence_penalty, llm_frequency_penalty, llm_repeat_retry_max")
             controller.info("         short_memory_turns, short_memory_max_chars, short_memory_max_tokens")
-            controller.info("         max_session_count, tts_base_url, tts_speaker, tts_style, tts_output_dir, tts_autoplay, tts_timeout_sec, tts_retry_max, tts_text_limit")
+            controller.info("         max_session_count, tts_base_url, tts_speaker, tts_style, tts_output_dir, tts_autoplay, tts_timeout_sec, tts_retry_max, tts_text_limit, tts_save_audio")
             controller.info("         tts_model_name, tts_server_start_cmd, tts_server_cwd")
             controller.info("         db_path, log_path")
+            controller.info("         voice_sample_rate, voice_channels, voice_vad_mode, voice_vad_silence_ms, voice_max_record_ms")
+            controller.info("         voice_whisper_cpp_path, voice_whisper_model_path, voice_language")
+            controller.info("         voice_save_audio, voice_save_log, voice_audio_output_dir, voice_log_output_dir")
             controller.info("/character show              : 現在のキャラクターを表示")
             controller.info("/character list              : キャラクター一覧を表示")
             controller.info("/character set <ID>          : キャラクターを切り替え")
@@ -252,12 +260,25 @@ def main() -> None:
                 controller.info(f"tts_retry_max={conv.settings.tts_retry_max}")
                 controller.info(f"tts_text_limit={conv.settings.tts_text_limit}")
                 controller.info(f"tts_server_limit={conv.settings.tts_server_limit}")
+                controller.info(f"tts_save_audio={conv.settings.tts_save_audio}")
                 controller.info(f"tts_server_start_cmd={conv.settings.tts_server_start_cmd}")
                 controller.info(f"tts_server_cwd={conv.settings.tts_server_cwd}")
                 controller.info(f"rag_top_k_episodes={conv.settings.rag_top_k_episodes}")
                 controller.info(f"rag_top_k_log_messages={conv.settings.rag_top_k_log_messages}")
                 controller.info(f"db_path={conv.settings.db_path}")
                 controller.info(f"log_path={conv.settings.log_path}")
+                controller.info(f"voice_sample_rate={conv.settings.voice_sample_rate}")
+                controller.info(f"voice_channels={conv.settings.voice_channels}")
+                controller.info(f"voice_vad_mode={conv.settings.voice_vad_mode}")
+                controller.info(f"voice_vad_silence_ms={conv.settings.voice_vad_silence_ms}")
+                controller.info(f"voice_max_record_ms={conv.settings.voice_max_record_ms}")
+                controller.info(f"voice_whisper_cpp_path={conv.settings.voice_whisper_cpp_path}")
+                controller.info(f"voice_whisper_model_path={conv.settings.voice_whisper_model_path}")
+                controller.info(f"voice_language={conv.settings.voice_language}")
+                controller.info(f"voice_save_audio={conv.settings.voice_save_audio}")
+                controller.info(f"voice_save_log={conv.settings.voice_save_log}")
+                controller.info(f"voice_audio_output_dir={conv.settings.voice_audio_output_dir}")
+                controller.info(f"voice_log_output_dir={conv.settings.voice_log_output_dir}")
             elif sub == "set" and len(args) >= 3:
                 key = args[1]
                 val = " ".join(args[2:])
@@ -272,13 +293,29 @@ def main() -> None:
                     "tts_timeout_sec",
                     "tts_retry_max",
                     "tts_text_limit",
+                    "tts_save_audio",
                     "tts_server_start_cmd",
                     "tts_server_cwd",
                 }
+                voice_keys = {
+                    "voice_sample_rate",
+                    "voice_channels",
+                    "voice_vad_mode",
+                    "voice_vad_silence_ms",
+                    "voice_max_record_ms",
+                }
+                voice_str_keys = {
+                    "voice_whisper_cpp_path",
+                    "voice_whisper_model_path",
+                    "voice_language",
+                    "voice_audio_output_dir",
+                    "voice_log_output_dir",
+                }
+                voice_bool_keys = {"voice_save_audio", "voice_save_log"}
 
                 if key in ("output_mode", "lmstudio_base_url", "lmstudio_model", "default_character_id"):
                     setattr(conv.settings, key, val)
-                elif key in ("short_memory_turns", "short_memory_max_chars", "short_memory_max_tokens", "max_session_count", "rag_top_k_episodes", "rag_top_k_log_messages", "tts_speaker", "tts_retry_max", "tts_text_limit", "llm_max_tokens", "llm_repeat_retry_max"):
+                elif key in ("short_memory_turns", "short_memory_max_chars", "short_memory_max_tokens", "max_session_count", "rag_top_k_episodes", "rag_top_k_log_messages", "tts_speaker", "tts_retry_max", "tts_text_limit", "llm_max_tokens", "llm_repeat_retry_max") or key in voice_keys:
                     try:
                         setattr(conv.settings, key, int(val))
                     except ValueError:
@@ -294,6 +331,8 @@ def main() -> None:
                         return current_session, current_char_name
                 elif key in ("tts_base_url", "tts_output_dir", "tts_style", "tts_model_name"):
                     setattr(conv.settings, key, val)
+                elif key in voice_str_keys:
+                    setattr(conv.settings, key, val)
                 elif key in ("tts_timeout_sec",):
                     try:
                         setattr(conv.settings, key, float(val))
@@ -308,7 +347,7 @@ def main() -> None:
                     # value is a command line; split by spaces (no shell). For paths with spaces, set in config.yaml directly.
                     cmd_list = args[2:]
                     conv.settings.tts_server_start_cmd = cmd_list
-                elif key in ("tts_autoplay",):
+                elif key in ("tts_autoplay", "tts_save_audio") or key in voice_bool_keys:
                     setattr(conv.settings, key, val.strip().lower() in ("1","true","yes","y","on"))
                 else:
                     controller.error("unknown key")
@@ -325,6 +364,19 @@ def main() -> None:
                 controller.info("config saved")
             else:
                 controller.error("usage: /config show | /config set KEY VALUE")
+            return current_session, current_char_name
+
+        if cmd == "voice":
+            sub = args[0] if args else ""
+            if sub in ("on", "start"):
+                voice_mode = True
+                controller.info("voice mode: ON")
+            elif sub in ("off", "stop"):
+                voice_mode = False
+                controller.info("voice mode: OFF")
+            else:
+                controller.info(f"voice mode: {'ON' if voice_mode else 'OFF'}")
+                controller.info("usage: /voice on|off")
             return current_session, current_char_name
 
         if cmd == "character":
@@ -358,7 +410,37 @@ def main() -> None:
         return current_session, current_char_name
 
     try:
-        controller.run(session, char_name, on_command, on_voice)
+        def voice_mode_enabled() -> bool:
+            return voice_mode
+
+        def on_voice_input() -> str:
+            cfg = VoiceInputConfig(
+                sample_rate=conv.settings.voice_sample_rate,
+                channels=conv.settings.voice_channels,
+                vad_mode=conv.settings.voice_vad_mode,
+                vad_silence_ms=conv.settings.voice_vad_silence_ms,
+                max_record_ms=conv.settings.voice_max_record_ms,
+                whisper_cpp_path=conv.settings.voice_whisper_cpp_path,
+                whisper_model_path=conv.settings.voice_whisper_model_path,
+                whisper_language=conv.settings.voice_language,
+                save_audio=conv.settings.voice_save_audio,
+                save_log=conv.settings.voice_save_log,
+                audio_output_dir=conv.settings.voice_audio_output_dir,
+                log_output_dir=conv.settings.voice_log_output_dir,
+            )
+            controller.info("voice input: 録音を開始します。話し終えたら少し待ってください。")
+            try:
+                text = capture_and_transcribe(cfg)
+            except Exception as e:
+                controller.error(f"voice input failed: {type(e).__name__}: {e}")
+                return ""
+            if not text:
+                controller.info("voice input: 文字起こし結果が空でした。")
+                return ""
+            controller.info(f"voice input => {text}")
+            return text
+
+        controller.run(session, char_name, on_command, on_voice, voice_mode_enabled, on_voice_input)
     except Exception as e:
         log.exception("fatal: %s", e)
         print(f"[ERROR] fatal: {type(e).__name__}: {e}")
