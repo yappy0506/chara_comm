@@ -16,6 +16,7 @@ class TtsConfig:
     timeout_sec: float = 30.0
     retry_max: int = 2
     text_limit: int | None = None
+    save_audio: bool = False
 
 
 class TtsClient:
@@ -64,12 +65,14 @@ class TtsClient:
             start = end
         return out
 
-    def synthesize_to_wav(self, text: str) -> Path:
+    def synthesize_to_wav(self, text: str) -> bytes:
         if self.cfg.text_limit and len(text) > self.cfg.text_limit:
             text = text[: self.cfg.text_limit]
-        out_dir = Path(self.cfg.output_dir)
-        out_dir.mkdir(parents=True, exist_ok=True)
-        out_path = self._next_out_path(out_dir)
+        out_path = None
+        if self.cfg.save_audio:
+            out_dir = Path(self.cfg.output_dir)
+            out_dir.mkdir(parents=True, exist_ok=True)
+            out_path = self._next_out_path(out_dir)
 
         url = self.cfg.base_url.rstrip("/") + "/voice"
         params = {"text": text, "speaker_id": self.cfg.speaker}
@@ -83,16 +86,17 @@ class TtsClient:
             try:
                 r = requests.post(url, params=params, timeout=self.cfg.timeout_sec)
                 r.raise_for_status()
-                out_path.write_bytes(r.content)
-                return out_path
+                if self.cfg.save_audio and out_path:
+                    out_path.write_bytes(r.content)
+                return r.content
             except Exception as exc:
                 last_error = exc
 
         if last_error:
             raise last_error
-        return out_path
+        return b""
 
-    def synthesize_to_wavs(self, text: str) -> list[Path]:
+    def synthesize_to_wavs(self, text: str) -> list[bytes]:
         chunks = self._split_text(text)
         if not chunks:
             return []

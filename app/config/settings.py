@@ -45,6 +45,7 @@ class Settings:
     tts_retry_max: int
     tts_text_limit: int
     tts_server_limit: int | None
+    tts_save_audio: bool
 
     # tts server (best-effort)
     tts_server_start_cmd: list[str]
@@ -58,6 +59,20 @@ class Settings:
     db_path: str
     log_path: str
     config_path: str
+
+    # voice input
+    voice_sample_rate: int
+    voice_channels: int
+    voice_vad_mode: int
+    voice_vad_silence_ms: int
+    voice_max_record_ms: int
+    voice_whisper_cpp_path: str | None
+    voice_whisper_model_path: str | None
+    voice_language: str
+    voice_save_audio: bool
+    voice_save_log: bool
+    voice_audio_output_dir: str
+    voice_log_output_dir: str
 
 
 def _get_int(name: str, default: int) -> int:
@@ -190,6 +205,7 @@ def load_settings() -> Settings:
     tts_cfg = cfg.get("tts") if isinstance(cfg.get("tts"), dict) else {}
     rag_cfg = cfg.get("rag") if isinstance(cfg.get("rag"), dict) else {}
     paths_cfg = cfg.get("paths") if isinstance(cfg.get("paths"), dict) else {}
+    voice_cfg = cfg.get("voice_input") if isinstance(cfg.get("voice_input"), dict) else {}
 
     # Some older configs had conversation.output_mode or top-level output_mode
     output_mode_cfg = (
@@ -286,6 +302,7 @@ def load_settings() -> Settings:
         tts_retry_max=_get_int("TTS_RETRY_MAX", int(tts_cfg.get("retry_max", 2))),
         tts_text_limit=tts_text_limit_raw,
         tts_server_limit=tts_server_limit,
+        tts_save_audio=_get_bool("TTS_SAVE_AUDIO", bool(tts_cfg.get("save_audio", False))),
 
         tts_server_start_cmd=tts_start_cmd,
         tts_server_cwd=str(tts_cfg.get("server_cwd")) if tts_cfg.get("server_cwd") else None,
@@ -302,6 +319,29 @@ def load_settings() -> Settings:
             str(paths_cfg.get("log_path", cfg.get("log_path", os.path.join("logs", "app.log")))),
         ),
         config_path=config_path,
+
+        voice_sample_rate=_get_int("VOICE_SAMPLE_RATE", int(voice_cfg.get("sample_rate", 16000))),
+        voice_channels=_get_int("VOICE_CHANNELS", int(voice_cfg.get("channels", 1))),
+        voice_vad_mode=_get_int("VOICE_VAD_MODE", int(voice_cfg.get("vad_mode", 2))),
+        voice_vad_silence_ms=_get_int("VOICE_VAD_SILENCE_MS", int(voice_cfg.get("vad_silence_ms", 1000))),
+        voice_max_record_ms=_get_int("VOICE_MAX_RECORD_MS", int(voice_cfg.get("max_record_ms", 15000))),
+        voice_whisper_cpp_path=os.getenv("VOICE_WHISPER_CPP_PATH") or (
+            str(voice_cfg.get("whisper_cpp_path")) if voice_cfg.get("whisper_cpp_path") else None
+        ),
+        voice_whisper_model_path=os.getenv("VOICE_WHISPER_MODEL_PATH") or (
+            str(voice_cfg.get("whisper_model_path")) if voice_cfg.get("whisper_model_path") else None
+        ),
+        voice_language=os.getenv("VOICE_LANGUAGE", str(voice_cfg.get("language", "ja"))),
+        voice_save_audio=_get_bool("VOICE_SAVE_AUDIO", bool(voice_cfg.get("save_audio", False))),
+        voice_save_log=_get_bool("VOICE_SAVE_LOG", bool(voice_cfg.get("save_log", False))),
+        voice_audio_output_dir=os.getenv(
+            "VOICE_AUDIO_OUTPUT_DIR",
+            str(voice_cfg.get("audio_output_dir", os.path.join("inputs"))),
+        ),
+        voice_log_output_dir=os.getenv(
+            "VOICE_LOG_OUTPUT_DIR",
+            str(voice_cfg.get("log_output_dir", os.path.join("logs", "asr"))),
+        ),
     )
 
     sync_llm_tts_limits(settings, source="auto")
@@ -342,8 +382,23 @@ def save_settings_to_yaml(settings: Settings) -> None:
             "timeout_sec": settings.tts_timeout_sec,
             "retry_max": settings.tts_retry_max,
             "text_limit": settings.tts_text_limit,
+            "save_audio": settings.tts_save_audio,
             "server_start_cmd": settings.tts_server_start_cmd,
             "server_cwd": settings.tts_server_cwd or "",
+        },
+        "voice_input": {
+            "sample_rate": settings.voice_sample_rate,
+            "channels": settings.voice_channels,
+            "vad_mode": settings.voice_vad_mode,
+            "vad_silence_ms": settings.voice_vad_silence_ms,
+            "max_record_ms": settings.voice_max_record_ms,
+            "whisper_cpp_path": settings.voice_whisper_cpp_path or "",
+            "whisper_model_path": settings.voice_whisper_model_path or "",
+            "language": settings.voice_language,
+            "save_audio": settings.voice_save_audio,
+            "save_log": settings.voice_save_log,
+            "audio_output_dir": settings.voice_audio_output_dir,
+            "log_output_dir": settings.voice_log_output_dir,
         },
         "rag": {
             "top_k_episodes": settings.rag_top_k_episodes,

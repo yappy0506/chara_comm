@@ -19,9 +19,9 @@ if not exist .venv\Scripts\python.exe (
 
 echo [INFO] Style-Bert-VITS2 のAPIサーバを起動します...
 if /i "%TTS_START_IN_NEW_WINDOW%"=="1" (
-  start "TTS" /D "Style-Bert-VITS2-2.7.0" venv\Scripts\python.exe server_fastapi.py
+  for /f %%P in ('powershell -NoProfile -Command "$p = Start-Process -FilePath 'venv\Scripts\python.exe' -ArgumentList 'server_fastapi.py' -WorkingDirectory 'Style-Bert-VITS2-2.7.0' -PassThru; $p.Id"') do set "TTS_PID=%%P"
 ) else (
-  start "TTS" /B /D "Style-Bert-VITS2-2.7.0" venv\Scripts\python.exe server_fastapi.py
+  for /f %%P in ('powershell -NoProfile -Command "$p = Start-Process -FilePath 'venv\Scripts\python.exe' -ArgumentList 'server_fastapi.py' -WorkingDirectory 'Style-Bert-VITS2-2.7.0' -NoNewWindow -PassThru; $p.Id"') do set "TTS_PID=%%P"
 )
 
 echo [INFO] TTSサーバの起動完了を待機します...
@@ -48,14 +48,23 @@ if errorlevel 1 (
   goto fail
 )
 
+call :stop_tts
 popd
 endlocal
 exit /b 0
 
 :fail
 echo [ERROR] %ERR_MSG%
+call :stop_tts
 popd
 endlocal
 echo.
 pause
 exit /b 1
+
+:stop_tts
+if defined TTS_PID (
+  echo [INFO] Stopping TTS Server...
+  taskkill /PID %TTS_PID% /T /F >nul 2>&1
+)
+exit /b 0

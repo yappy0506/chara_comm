@@ -192,11 +192,6 @@ class PromptBuilder:
             parts.append("")
             parts.extend([f"- {x}" for x in h])
 
-        eps = _episodes_summary(episodes)
-        if eps:
-            parts.append("")
-            parts.append(_bullets("Episodes (tellable summary)", eps))
-
         if rag_hits:
             parts.append("")
             parts.append("【RAG Context】")
