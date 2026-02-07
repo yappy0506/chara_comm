@@ -8,6 +8,7 @@ if not exist "%LOG_DIR%" mkdir "%LOG_DIR%" >nul 2>&1
 for /f %%I in ('powershell -NoProfile -Command "(Get-Date).ToString('yyyyMMdd_HHmmss')"') do set "RUN_TIMESTAMP=%%I"
 set "DEBUG_LOG_PATH=%LOG_DIR%\debuglog_%RUN_TIMESTAMP%.log"
 set "DEBUG_LOG_TTS_PATH=%LOG_DIR%\debuglog_%RUN_TIMESTAMP%_tts.log"
+set "TTS_SCRIPT_DIR=%CD%\scripts"
 > "%DEBUG_LOG_PATH%" echo [INFO] Run started at %date% %time%
 call :log "[INFO] Debug log: %DEBUG_LOG_PATH%"
 call :log "[INFO] TTS log: %DEBUG_LOG_TTS_PATH%"
@@ -27,7 +28,7 @@ if not exist .venv\Scripts\python.exe (
 )
 
 set "TTS_HEALTH_URL=http://127.0.0.1:5000/docs"
-call :check_tts_health
+powershell -NoProfile -Command "try { $r=Invoke-WebRequest -UseBasicParsing -TimeoutSec 2 -Uri '%TTS_HEALTH_URL%'; if ($r.StatusCode -eq 200) { exit 0 } else { exit 1 } } catch { exit 1 }" >> "%DEBUG_LOG_PATH%" 2>&1
 if %errorlevel%==0 (
   call :log "[INFO] TTS health endpoint is already reachable."
   goto tts_ready
@@ -35,9 +36,9 @@ if %errorlevel%==0 (
 
 call :log "[INFO] Starting Style-Bert-VITS2 API server..."
 if /i "%TTS_START_IN_NEW_WINDOW%"=="1" (
-  start "TTS" /D "Style-Bert-VITS2-2.7.0" cmd /d /c "venv\Scripts\python.exe server_fastapi.py 1>>%DEBUG_LOG_TTS_PATH% 2>&1"
+  start "TTS" /D "Style-Bert-VITS2-2.7.0" powershell -NoProfile -ExecutionPolicy Bypass -File "%TTS_SCRIPT_DIR%\run_tts_with_log.ps1" -LogPath "%DEBUG_LOG_TTS_PATH%"
 ) else (
-  start "TTS" /B /D "Style-Bert-VITS2-2.7.0" cmd /d /c "venv\Scripts\python.exe server_fastapi.py 1>>%DEBUG_LOG_TTS_PATH% 2>&1"
+  start "TTS" /B /D "Style-Bert-VITS2-2.7.0" powershell -NoProfile -ExecutionPolicy Bypass -File "%TTS_SCRIPT_DIR%\run_tts_with_log.ps1" -LogPath "%DEBUG_LOG_TTS_PATH%"
 )
 
 call :log "[INFO] Waiting for TTS server to become ready..."
@@ -46,7 +47,7 @@ set /a TTS_RETRY=0
 set /a TTS_RETRY_MAX=%TTS_WAIT_TIMEOUT_SEC% / 2
 if %TTS_RETRY_MAX% lss 1 set /a TTS_RETRY_MAX=1
 :wait_tts
-call :check_tts_health
+powershell -NoProfile -Command "try { $r=Invoke-WebRequest -UseBasicParsing -TimeoutSec 2 -Uri '%TTS_HEALTH_URL%'; if ($r.StatusCode -eq 200) { exit 0 } else { exit 1 } } catch { exit 1 }" >> "%DEBUG_LOG_PATH%" 2>&1
 if %errorlevel%==0 goto tts_ready
 set /a TTS_RETRY+=1
 if %TTS_RETRY% geq %TTS_RETRY_MAX% (
@@ -90,12 +91,8 @@ popd
 endlocal
 exit /b 0
 
-:check_tts_health
-powershell -NoProfile -Command "try { $r=Invoke-WebRequest -UseBasicParsing -TimeoutSec 2 -Uri '%TTS_HEALTH_URL%'; if ($r.StatusCode -eq 200) { exit 0 } else { exit 1 } } catch { exit 1 }" >> "%DEBUG_LOG_PATH%" 2>&1
-exit /b %errorlevel%
-
 :check_tts_process
-powershell -NoProfile -Command "$p=Get-CimInstance Win32_Process -Filter \"name='python.exe'\" | Where-Object { $_.CommandLine -match 'server_fastapi.py' -and $_.CommandLine -match 'Style-Bert-VITS2-2.7.0' }; if($p){ exit 0 } else { exit 1 }" >> "%DEBUG_LOG_PATH%" 2>&1
+powershell -NoProfile -ExecutionPolicy Bypass -File "%TTS_SCRIPT_DIR%\check_tts_process.ps1" >> "%DEBUG_LOG_PATH%" 2>&1
 exit /b %errorlevel%
 
 :log
@@ -109,13 +106,8 @@ if /i not "%TTS_STOP_ON_EXIT%"=="1" (
   call :log "[INFO] Skipping TTS stop on exit (TTS_STOP_ON_EXIT=%TTS_STOP_ON_EXIT%)."
   exit /b 0
 )
-set "TTS_STOP_COUNT=0"
-for /f %%I in ('powershell -NoProfile -Command "$ErrorActionPreference='SilentlyContinue'; $p=Get-CimInstance Win32_Process -Filter \"name='python.exe'\" | Where-Object { $_.CommandLine -match 'server_fastapi.py' -and $_.CommandLine -match 'Style-Bert-VITS2-2.7.0' }; $n=0; foreach($x in $p){ try { Stop-Process -Id $x.ProcessId -Force -ErrorAction Stop; $n++ } catch {} }; Write-Output $n"') do set "TTS_STOP_COUNT=%%I"
-if "%TTS_STOP_COUNT%"=="0" (
-  call :log "[INFO] No TTS process to stop."
-) else (
-  call :log "[INFO] Stopped TTS process count: %TTS_STOP_COUNT%"
-)
+powershell -NoProfile -ExecutionPolicy Bypass -File "%TTS_SCRIPT_DIR%\stop_tts_server.ps1" >> "%DEBUG_LOG_PATH%" 2>&1
+call :log "[INFO] TTS stop command executed."
 exit /b 0
 
 :fail
