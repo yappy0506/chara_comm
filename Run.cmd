@@ -25,6 +25,13 @@ if not exist .venv\Scripts\python.exe (
   goto fail
 )
 
+set "TTS_HEALTH_URL=http://127.0.0.1:5000/docs"
+call :check_tts_health
+if %errorlevel%==0 (
+  call :log "[INFO] TTS health endpoint is already reachable."
+  goto tts_ready
+)
+
 call :log "[INFO] Starting Style-Bert-VITS2 API server..."
 if /i "%TTS_START_IN_NEW_WINDOW%"=="1" (
   start "TTS" /D "Style-Bert-VITS2-2.7.0" cmd /d /c "venv\Scripts\python.exe server_fastapi.py 1>>%DEBUG_LOG_TTS_PATH% 2>&1"
@@ -33,13 +40,12 @@ if /i "%TTS_START_IN_NEW_WINDOW%"=="1" (
 )
 
 call :log "[INFO] Waiting for TTS server to become ready..."
-set "TTS_HEALTH_URL=http://127.0.0.1:5000/docs"
 if not defined TTS_WAIT_TIMEOUT_SEC set "TTS_WAIT_TIMEOUT_SEC=30"
 set /a TTS_RETRY=0
 set /a TTS_RETRY_MAX=%TTS_WAIT_TIMEOUT_SEC% / 2
 if %TTS_RETRY_MAX% lss 1 set /a TTS_RETRY_MAX=1
 :wait_tts
-powershell -NoProfile -Command "try { $r=Invoke-WebRequest -UseBasicParsing -TimeoutSec 2 -Uri '%TTS_HEALTH_URL%'; if ($r.StatusCode -eq 200) { exit 0 } else { exit 1 } } catch { exit 1 }" >> "%DEBUG_LOG_PATH%" 2>&1
+call :check_tts_health
 if %errorlevel%==0 goto tts_ready
 set /a TTS_RETRY+=1
 if %TTS_RETRY% geq %TTS_RETRY_MAX% (
@@ -49,9 +55,22 @@ timeout /t 2 /nobreak >nul
 goto wait_tts
 :tts_ready
 call :log "[INFO] TTS server is ready."
+call :check_tts_process
+if %errorlevel%==0 (
+  call :log "[INFO] TTS process is running (server_fastapi.py)."
+) else (
+  call :log "[WARN] TTS health is reachable but server_fastapi.py process was not detected."
+)
 goto start_app
 
 :tts_wait_timeout
+call :log "[WARN] Could not confirm TTS server startup."
+call :check_tts_process
+if %errorlevel%==0 (
+  call :log "[WARN] server_fastapi.py process exists, but health check did not become ready."
+) else (
+  call :log "[WARN] server_fastapi.py process was not detected."
+)
 call :log "[WARN] Timed out after %TTS_WAIT_TIMEOUT_SEC% seconds while waiting for TTS."
 call :log "[WARN] Skipping readiness check and continuing."
 call :log "[WARN] Check URL: %TTS_HEALTH_URL%"
@@ -68,6 +87,14 @@ call :log "[INFO] Run completed successfully."
 popd
 endlocal
 exit /b 0
+
+:check_tts_health
+powershell -NoProfile -Command "try { $r=Invoke-WebRequest -UseBasicParsing -TimeoutSec 2 -Uri '%TTS_HEALTH_URL%'; if ($r.StatusCode -eq 200) { exit 0 } else { exit 1 } } catch { exit 1 }" >> "%DEBUG_LOG_PATH%" 2>&1
+exit /b %errorlevel%
+
+:check_tts_process
+powershell -NoProfile -Command "$p=Get-CimInstance Win32_Process -Filter \"name='python.exe'\" | Where-Object { $_.CommandLine -match 'server_fastapi.py' -and $_.CommandLine -match 'Style-Bert-VITS2-2.7.0' }; if($p){ exit 0 } else { exit 1 }" >> "%DEBUG_LOG_PATH%" 2>&1
+exit /b %errorlevel%
 
 :log
 set "_LOG_MSG=%~1"
