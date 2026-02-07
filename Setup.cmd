@@ -1,12 +1,14 @@
-﻿@echo off
+@echo off
 setlocal
 for /f "tokens=2 delims=:" %%A in ('chcp') do set "OLDCP=%%A"
 set "OLDCP=%OLDCP: =%"
 chcp 65001 >nul
 
+set "PATH=%USERPROFILE%\.local\bin;%PATH%"
+
 pushd %~dp0
 
-echo [INFO] Style-Bert-VITS2-2.7.0 のセットアップを開始します...
+echo [INFO] Starting Style-Bert-VITS2-2.7.0 setup...
 pushd Style-Bert-VITS2-2.7.0
 if not exist venv (
   uv venv venv
@@ -18,7 +20,7 @@ python initialize.py
 call venv\Scripts\deactivate.bat
 popd
 
-echo [INFO] chara_comm のセットアップを開始します...
+echo [INFO] Starting chara_comm setup...
 if not exist .venv (
   uv venv .venv
 )
@@ -31,7 +33,8 @@ call .venv\Scripts\deactivate.bat
 
 popd
 
-echo [INFO] セットアップが完了しました。
+echo [INFO] Setup completed.
 if defined OLDCP chcp %OLDCP% >nul
 endlocal
 
+exit /b 0
