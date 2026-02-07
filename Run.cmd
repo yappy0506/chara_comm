@@ -14,6 +14,7 @@ call :log "[INFO] TTS log: %DEBUG_LOG_TTS_PATH%"
 
 rem Open TTS server in a new terminal window (1: yes / 0: no)
 if not defined TTS_START_IN_NEW_WINDOW set "TTS_START_IN_NEW_WINDOW=1"
+if not defined TTS_STOP_ON_EXIT set "TTS_STOP_ON_EXIT=1"
 
 if not exist Style-Bert-VITS2-2.7.0\venv\Scripts\python.exe (
   set "ERR_MSG=Style-Bert-VITS2-2.7.0 virtual environment was not found. Run Setup.cmd first."
@@ -84,6 +85,7 @@ if errorlevel 1 (
 )
 
 call :log "[INFO] Run completed successfully."
+call :stop_tts_server
 popd
 endlocal
 exit /b 0
@@ -102,8 +104,23 @@ echo %_LOG_MSG%
 >> "%DEBUG_LOG_PATH%" echo [%date% %time%] %_LOG_MSG%
 exit /b 0
 
+:stop_tts_server
+if /i not "%TTS_STOP_ON_EXIT%"=="1" (
+  call :log "[INFO] Skipping TTS stop on exit (TTS_STOP_ON_EXIT=%TTS_STOP_ON_EXIT%)."
+  exit /b 0
+)
+set "TTS_STOP_COUNT=0"
+for /f %%I in ('powershell -NoProfile -Command "$ErrorActionPreference='SilentlyContinue'; $p=Get-CimInstance Win32_Process -Filter \"name='python.exe'\" | Where-Object { $_.CommandLine -match 'server_fastapi.py' -and $_.CommandLine -match 'Style-Bert-VITS2-2.7.0' }; $n=0; foreach($x in $p){ try { Stop-Process -Id $x.ProcessId -Force -ErrorAction Stop; $n++ } catch {} }; Write-Output $n"') do set "TTS_STOP_COUNT=%%I"
+if "%TTS_STOP_COUNT%"=="0" (
+  call :log "[INFO] No TTS process to stop."
+) else (
+  call :log "[INFO] Stopped TTS process count: %TTS_STOP_COUNT%"
+)
+exit /b 0
+
 :fail
 call :log "[ERROR] %ERR_MSG%"
+call :stop_tts_server
 popd
 endlocal
 echo.
