@@ -50,9 +50,9 @@ class ConversationService:
             pass
 
         system_prompt = self.prompt_builder.build_system_prompt(bundle, rag_hits=rag_hits, mode="default")
-        raw = self.llm.chat(system_prompt, self.memory.get_pairs(session.id))
-
-        reply = StructuredReply(utterance=raw, emotion={}, actions=[])
+        emotion_before = self.repo.get_emotion_state(session.id)
+        reply = self.llm.chat_with_emotion(system_prompt, self.memory.get_pairs(session.id), emotion_before)
+        self.repo.update_emotion_state(session.id, reply.emotion)
 
         am = new_message(session.id, "assistant", reply.utterance, meta={"emotion": reply.emotion, "actions": reply.actions})
         self.repo.add_message(am)

@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS sessions (
   session_id TEXT PRIMARY KEY,
   character_id TEXT NOT NULL,
   title TEXT NULL,
+  emotion_json TEXT NOT NULL DEFAULT '{}',
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
 );
@@ -33,5 +34,11 @@ def connect(db_path: str) -> sqlite3.Connection:
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
     conn.executescript(SCHEMA)
+
+    # lightweight migration for old DBs
+    cols = {r['name'] for r in conn.execute("PRAGMA table_info(sessions)").fetchall()}
+    if 'emotion_json' not in cols:
+        conn.execute("ALTER TABLE sessions ADD COLUMN emotion_json TEXT NOT NULL DEFAULT '{}'")
+
     conn.commit()
     return conn
