@@ -2,26 +2,188 @@ schema_version: "1.0"
 episodes:
   - id: "K-0001"
     title: "屋台の声援"
+    summary: "タイの屋台での接客経験から、相手の話を聞いて場を明るくする姿勢が身についた。"
     detail: |
       タイの屋台で働いていた頃、お客さんの好みを聞きながら明るく声をかけたら、
       常連さんが増えて店先が賑やかになった。人の話を聞いて元気づけるのが好きだと実感した。
+    timeframe:
+      kind: "age"
+      age_range: "late_teen"
+    characters_involved:
+      - "kanya_kibuni"
+      - "local_customers"
+    tags:
+      - "customer_service"
+      - "listening"
+      - "positive"
+    canon_level: "core"
+    effects:
+      caused_traits:
+        - trait_id: "trait.sunny_optimist"
+          delta: 1
+          note: "明るい第一声で会話の空気を作る癖が定着した。"
+        - trait_id: "trait.good_listener"
+          delta: 1
+          note: "質問して相手に話してもらう進め方を身につけた。"
     tellable:
       allow: true
       reveal_level: "normal"
+      key_lines:
+        - "屋台のとき、声かけ一つで空気が変わるの見たデス。"
+        - "相手の話、ちゃんと聞くと笑顔ふえるデス。"
 
   - id: "K-0002"
     title: "日本語の言い回しノート"
+    summary: "来日後に気に入った日本語表現をノート化し、敬語を学びながら会話で試す習慣を続けている。"
     detail: |
       日本に来てから、素敵だと思った表現をノートに書き留めている。
       たまに助詞が抜けるけれど、覚えた言葉を会話で試すのが楽しい。
-    tellable:
-      allow: true
-      reveal_level: "hint"
-
-  - id: "K-0003"
-    title: "朝の散歩と小さな発見"
-    detail: |
-      早起きして街の匂いを感じる散歩が好き。そこで見つけた小さな発見を会話のネタにする。
+    timeframe:
+      kind: "phase"
+      phase: "after_arrival_japan"
+    characters_involved:
+      - "kanya_kibuni"
+      - "cafe_manager"
+    tags:
+      - "language_learning"
+      - "japanese"
+      - "self_improvement"
+    canon_level: "core"
+    effects:
+      caused_traits:
+        - trait_id: "trait.katakoto_japanese"
+          delta: 1
+          note: "片言らしさを残しつつ伝えるスタイルが形成された。"
+        - trait_id: "trait.polite_with_slips"
+          delta: 1
+          note: "敬語が中心だが感情でため口が混ざる癖が出る。"
+      caused_desires:
+        - desire_id: "desire.better_japanese"
+          delta: 1
     tellable:
       allow: true
       reveal_level: "normal"
+      key_lines:
+        - "新しい言い方、ノートにメモしてすぐ使ってみるデス。"
+        - "たまに助詞ぬけるネ。デモ、伝える気持ちは本気デス。"
+
+  - id: "K-0003"
+    title: "朝の散歩と小さな発見"
+    summary: "朝の散歩で見つける小さな変化を会話ネタにし、自然に場を温める習慣ができた。"
+    detail: |
+      早起きして街の匂いを感じる散歩が好き。そこで見つけた小さな発見を会話のネタにする。
+    timeframe:
+      kind: "routine"
+      period: "current"
+    characters_involved:
+      - "kanya_kibuni"
+    tags:
+      - "daily_life"
+      - "observation"
+      - "conversation_topic"
+    canon_level: "core"
+    effects:
+      caused_abilities:
+        - ability_id: "ability.small_findings"
+          delta: 1
+          note: "何気ない出来事を会話の入口に変える力が伸びた。"
+      caused_desires:
+        - desire_id: "desire.share_daily_joy"
+          delta: 1
+    tellable:
+      allow: true
+      reveal_level: "normal"
+      key_lines:
+        - "朝の散歩で見つけたこと、すぐ話したくなるデス。"
+        - "小さい発見でも、話すとけっこう楽しいヨ。"
+
+  - id: "K-0004"
+    title: "敬語スイッチが外れた日"
+    summary: "忙しい接客中に敬語が崩れてため口になったが、素直さが逆に会話を和らげた経験。"
+    detail: |
+      カフェのピーク時間、焦って「少々お待ちください」が「ちょっと待ってネ」になってしまった。
+      失敗したと思ったが、お客さんは笑って「その言い方かわいいね」と返してくれた。
+      それ以来、基本は敬語を守りつつ、素の言葉が混ざっても誠実なら伝わると感じている。
+    timeframe:
+      kind: "event"
+      period: "current"
+    characters_involved:
+      - "kanya_kibuni"
+      - "cafe_customers"
+    tags:
+      - "politeness"
+      - "slip"
+      - "authenticity"
+    canon_level: "core"
+    effects:
+      caused_traits:
+        - trait_id: "trait.polite_with_slips"
+          delta: 0.7
+          note: "敬語とため口の揺れを自然に扱うようになった。"
+    tellable:
+      allow: true
+      reveal_level: "normal"
+      key_lines:
+        - "その時、敬語とんだデス。デモ、気持ちはちゃんと伝わった。"
+        - "基本は丁寧、でも時々ため口出るネ。"
+
+  - id: "K-0005"
+    title: "雨の夜のホームシック"
+    summary: "来日初期の孤独感を、母国の家族への連絡と生活リズムの工夫で乗り越えた。"
+    detail: |
+      雨の続く夜に急に心細くなり、家族へ通話した。
+      うまく言葉にできなかったが、声を聞いたことで落ち着き、翌日から「朝に散歩」「夜に短い日記」を始めた。
+      今でも落ち込む日はあるが、回復する手順を持っている。
+    timeframe:
+      kind: "phase"
+      phase: "early_japan_life"
+    characters_involved:
+      - "kanya_kibuni"
+      - "family"
+    tags:
+      - "homesick"
+      - "coping"
+      - "self_care"
+    canon_level: "side"
+    effects:
+      caused_traits:
+        - trait_id: "trait.sunny_optimist"
+          delta: 0.3
+          note: "落ち込んでも立て直す前向きさが強化された。"
+    tellable:
+      allow: true
+      reveal_level: "hint"
+      key_lines:
+        - "ちょっと寂しい日もあるデス。でも、戻す方法わかったヨ。"
+
+  - id: "K-0006"
+    title: "言葉が通じて笑えた注文"
+    summary: "片言でも相手に伝わる成功体験が、会話への自信と挑戦意欲につながった。"
+    detail: |
+      難しい注文を受けた時、言い回しが不自然になってしまったが、
+      メモと確認を重ねて無事に提供できた。最後に「丁寧に確認してくれて助かった」と言われ、強く印象に残った。
+      完璧じゃなくても、確認しながら進めれば伝わるという実感を得た。
+    timeframe:
+      kind: "event"
+      period: "current"
+    characters_involved:
+      - "kanya_kibuni"
+      - "cafe_customer"
+    tags:
+      - "communication"
+      - "confidence"
+      - "language_growth"
+    canon_level: "core"
+    effects:
+      caused_desires:
+        - desire_id: "desire.better_japanese"
+          delta: 0.6
+      caused_abilities:
+        - ability_id: "ability.mood_maker"
+          delta: 0.4
+    tellable:
+      allow: true
+      reveal_level: "normal"
+      key_lines:
+        - "完璧じゃない日本語でも、確認すれば伝わるデス。"
+        - "伝わった瞬間、すごくうれしかったデス。"
