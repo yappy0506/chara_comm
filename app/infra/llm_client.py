@@ -71,6 +71,8 @@ class LlmClient:
     ) -> StructuredReply:
         format_rule = (
             "\n\n【Emotion Engine】\n"
+            "- 入力は必ずJSONのみ（下記Input schema準拠）。\n"
+            "- 出力は必ずJSONのみ（下記Output schema準拠）。\n"
             "- 現在のemotionは0-99の整数で扱う。\n"
             "- 応答を作る前にemotionを会話文脈に沿って更新する。\n"
             "- 感情は以下の傾向で更新する（重要）。\n"
@@ -83,24 +85,34 @@ class LlmClient:
             "  - Anger: 侮辱・理不尽・侵害で上げる。謝罪・是正・境界尊重で下げる。\n"
             "  - Anticipation: 見通し・計画・次の一手で上げ、見通し喪失・失望で下げる。\n"
             "- 共通ルール: Surpriseは短命で他感情への入口、Trustは積み上げ型、Sadness/Disgustは残留しやすい。\n"
-            "- 出力は必ずJSONのみ。\n"
-            "- JSON schema:"
+            "- ユーザーへemotionの数値や内部処理は明示しない。\n"
+            "- Input schema:"
+            '{"emotion":{"joy":0,"trust":0,"fear":0,"surprise":0,"sadness":0,"disgust":0,"anger":0,"anticipation":0},"conversation":[{"role":"user|assistant","content":"..."}],"instruction":"character_roleplay"}\n'
+            "- Output schema:"
             '{"utterance":"<string>","emotion":{"joy":0,"trust":0,"fear":0,"surprise":0,"sadness":0,"disgust":0,"anger":0,"anticipation":0},"actions":[]}\n'
-            "- ユーザーへemotionの数値や内部処理は明示しない。"
+            "- system prompt側に『発話のみ』等の指示があっても、このJSON出力要件を優先する。"
         )
-        msgs = [SystemMessage(content=system_prompt + format_rule)]
-        msgs.append(HumanMessage(content=f"現在のemotion: {json.dumps(normalize_emotion_state(emotion), ensure_ascii=False)}"))
+
+        normalized_emotion = normalize_emotion_state(emotion)
+        conversation_payload: list[dict[str, str]] = []
         for role, content in pairs:
-            if role == "user":
-                msgs.append(HumanMessage(content=content))
-            elif role == "assistant":
-                msgs.append(AIMessage(content=content))
+            if role in ("user", "assistant"):
+                conversation_payload.append({"role": role, "content": content})
+
+        input_payload = {
+            "emotion": normalized_emotion,
+            "conversation": conversation_payload,
+            "instruction": "character_roleplay",
+        }
+
+        msgs = [SystemMessage(content=system_prompt + format_rule)]
+        msgs.append(HumanMessage(content=json.dumps(input_payload, ensure_ascii=False)))
 
         raw = self._invoke(msgs)
         try:
             data = json.loads(raw)
         except Exception:
-            return StructuredReply(utterance=raw, emotion=normalize_emotion_state(emotion), actions=[])
+            return StructuredReply(utterance=raw, emotion=normalized_emotion, actions=[])
 
         utterance = str(data.get("utterance", "")).strip() if isinstance(data, dict) else ""
         actions = data.get("actions", []) if isinstance(data, dict) and isinstance(data.get("actions"), list) else []
