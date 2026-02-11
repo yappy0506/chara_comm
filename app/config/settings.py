@@ -34,6 +34,17 @@ class Settings:
     # output
     output_mode: str  # text_voice / text / voice
 
+    # avatar motion
+    avatar_enabled: bool
+    avatar_backend: str
+    avatar_action_to_hotkey: dict[str, str]
+    avatar_emotion_to_hotkey: dict[str, str]
+    vtube_studio_ws_url: str
+    vtube_studio_plugin_name: str
+    vtube_studio_plugin_developer: str
+    vtube_studio_auth_token_path: str
+    vtube_studio_timeout_sec: float
+
     # tts
     tts_base_url: str | None
     tts_model_name: str | None
@@ -188,6 +199,8 @@ def load_settings() -> Settings:
     session_cfg = cfg.get("session") if isinstance(cfg.get("session"), dict) else {}
     lm_cfg = cfg.get("lmstudio") if isinstance(cfg.get("lmstudio"), dict) else {}
     tts_cfg = cfg.get("tts") if isinstance(cfg.get("tts"), dict) else {}
+    avatar_cfg = cfg.get("avatar") if isinstance(cfg.get("avatar"), dict) else {}
+    vtube_cfg = avatar_cfg.get("vtube_studio") if isinstance(avatar_cfg.get("vtube_studio"), dict) else {}
     rag_cfg = cfg.get("rag") if isinstance(cfg.get("rag"), dict) else {}
     paths_cfg = cfg.get("paths") if isinstance(cfg.get("paths"), dict) else {}
 
@@ -276,6 +289,22 @@ def load_settings() -> Settings:
 
         output_mode=os.getenv("OUTPUT_MODE", str(output_mode_cfg)),
 
+        avatar_enabled=_get_bool("AVATAR_ENABLED", bool(avatar_cfg.get("enabled", False))),
+        avatar_backend=os.getenv("AVATAR_BACKEND", str(avatar_cfg.get("backend", "none"))),
+        avatar_action_to_hotkey={
+            str(k): str(v)
+            for k, v in (avatar_cfg.get("action_to_hotkey") if isinstance(avatar_cfg.get("action_to_hotkey"), dict) else {}).items()
+        },
+        avatar_emotion_to_hotkey={
+            str(k): str(v)
+            for k, v in (avatar_cfg.get("emotion_to_hotkey") if isinstance(avatar_cfg.get("emotion_to_hotkey"), dict) else {}).items()
+        },
+        vtube_studio_ws_url=os.getenv("VTUBE_STUDIO_WS_URL", str(vtube_cfg.get("ws_url", "ws://127.0.0.1:8001"))),
+        vtube_studio_plugin_name=os.getenv("VTUBE_STUDIO_PLUGIN_NAME", str(vtube_cfg.get("plugin_name", "chara-comm"))),
+        vtube_studio_plugin_developer=os.getenv("VTUBE_STUDIO_PLUGIN_DEVELOPER", str(vtube_cfg.get("plugin_developer", "chara-comm"))),
+        vtube_studio_auth_token_path=os.getenv("VTUBE_STUDIO_AUTH_TOKEN_PATH", str(vtube_cfg.get("auth_token_path", os.path.join("data", "vtube_studio_auth_token.txt")))),
+        vtube_studio_timeout_sec=_get_float("VTUBE_STUDIO_TIMEOUT_SEC", float(vtube_cfg.get("timeout_sec", 3.0))),
+
         tts_base_url=os.getenv("TTS_BASE_URL", str(tts_cfg.get("base_url", ""))) or None,
         tts_model_name=os.getenv("TTS_MODEL_NAME", str(tts_cfg.get("model_name", ""))) or None,
         tts_speaker=_get_int("TTS_SPEAKER", int(tts_cfg.get("speaker", 0))),
@@ -344,6 +373,19 @@ def save_settings_to_yaml(settings: Settings) -> None:
             "text_limit": settings.tts_text_limit,
             "server_start_cmd": settings.tts_server_start_cmd,
             "server_cwd": settings.tts_server_cwd or "",
+        },
+        "avatar": {
+            "enabled": settings.avatar_enabled,
+            "backend": settings.avatar_backend,
+            "action_to_hotkey": settings.avatar_action_to_hotkey,
+            "emotion_to_hotkey": settings.avatar_emotion_to_hotkey,
+            "vtube_studio": {
+                "ws_url": settings.vtube_studio_ws_url,
+                "plugin_name": settings.vtube_studio_plugin_name,
+                "plugin_developer": settings.vtube_studio_plugin_developer,
+                "auth_token_path": settings.vtube_studio_auth_token_path,
+                "timeout_sec": settings.vtube_studio_timeout_sec,
+            },
         },
         "rag": {
             "top_k_episodes": settings.rag_top_k_episodes,

@@ -50,3 +50,16 @@ Style-Bert-VITS2 (ver.2.7.0) は本リポジトリに同梱されています。
 
 本アプリケーションにおいて TTS は推論と音声出力のみに使用されます。
 マージや新規モデルの作成には対応していません。
+
+## VTube Studio 連携（Live2Dモーション）
+LLMの `actions` / `emotion` をアバター制御コマンドへ変換し、バックエンド経由で送信できます。
+実装は `app/avatar_control` に分離されており、将来は VTube Studio 以外のバックエンドへ差し替え可能です。
+
+- `avatar.enabled`: 有効化
+- `avatar.backend`: `none` または `vtube_studio`
+- `avatar.action_to_hotkey`: `actions` 名からVTSホットキーへの対応表
+- `avatar.emotion_to_hotkey`: `actions` が空の時に使う感情→ホットキー対応表
+- `avatar.vtube_studio.*`: WebSocket接続・プラグイン認証設定
+
+初回接続時はVTube Studio側でプラグイン認証を許可してください。
+認証トークンは `avatar.vtube_studio.auth_token_path` に保存されます。
