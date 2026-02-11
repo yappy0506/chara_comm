@@ -21,7 +21,7 @@ lmstudio:
   repeat_retry_max: 1
 tts:
   base_url: http://127.0.0.1:5000
-  model_name: 'zundamon'
+  model_name: 'chugoku_jvnvF2'
   speaker: 0
   style: ''
   output_dir: outputs
