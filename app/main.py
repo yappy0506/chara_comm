@@ -22,6 +22,8 @@ from app.domain.character_loader import load_character
 from app.usecases.session_service import SessionService
 from app.usecases.conversation_service import ConversationService
 from app.ui.cui_controller import CUIController
+from app.domain.models import StructuredReply
+from app.avatar_control.factory import build_avatar_motion_service
 
 
 def _setup_logging(log_path: str) -> None:
@@ -114,6 +116,7 @@ def main() -> None:
     )
 
     conv = ConversationService("characters", prompt_builder, memory, llm, repo, st)
+    avatar_motion = build_avatar_motion_service(st)
     try:
         conv.ensure_short_memory_loaded(session)
     except Exception as e:
@@ -177,7 +180,7 @@ def main() -> None:
             controller.error(f"tts: {type(e).__name__}: {e}")
 
     def on_command(cmd: str, args: list[str], current_session, current_char_name):
-        nonlocal session, tts_client
+        nonlocal session, tts_client, avatar_motion
 
         if cmd == "help":
             controller.info("/mode [text_voice|text|voice]  : 出力モード変更")
@@ -190,6 +193,8 @@ def main() -> None:
             controller.info("         short_memory_turns, short_memory_max_chars, short_memory_max_tokens")
             controller.info("         max_session_count, tts_base_url, tts_speaker, tts_style, tts_output_dir, tts_autoplay, tts_timeout_sec, tts_retry_max, tts_text_limit")
             controller.info("         tts_model_name, tts_server_start_cmd, tts_server_cwd")
+            controller.info("         avatar_enabled, avatar_backend")
+            controller.info("         vtube_studio_ws_url, vtube_studio_plugin_name, vtube_studio_plugin_developer, vtube_studio_auth_token_path, vtube_studio_timeout_sec")
             controller.info("         db_path, log_path")
             controller.info("/character show              : 現在のキャラクターを表示")
             controller.info("/character list              : キャラクター一覧を表示")
@@ -257,6 +262,13 @@ def main() -> None:
                 controller.info(f"tts_server_cwd={conv.settings.tts_server_cwd}")
                 controller.info(f"rag_top_k_episodes={conv.settings.rag_top_k_episodes}")
                 controller.info(f"rag_top_k_log_messages={conv.settings.rag_top_k_log_messages}")
+                controller.info(f"avatar_enabled={conv.settings.avatar_enabled}")
+                controller.info(f"avatar_backend={conv.settings.avatar_backend}")
+                controller.info(f"vtube_studio_ws_url={conv.settings.vtube_studio_ws_url}")
+                controller.info(f"vtube_studio_plugin_name={conv.settings.vtube_studio_plugin_name}")
+                controller.info(f"vtube_studio_plugin_developer={conv.settings.vtube_studio_plugin_developer}")
+                controller.info(f"vtube_studio_auth_token_path={conv.settings.vtube_studio_auth_token_path}")
+                controller.info(f"vtube_studio_timeout_sec={conv.settings.vtube_studio_timeout_sec}")
                 controller.info(f"db_path={conv.settings.db_path}")
                 controller.info(f"log_path={conv.settings.log_path}")
             elif sub == "set" and len(args) >= 3:
@@ -277,6 +289,16 @@ def main() -> None:
                     "tts_server_cwd",
                 }
 
+                avatar_keys = {
+                    "avatar_enabled",
+                    "avatar_backend",
+                    "vtube_studio_ws_url",
+                    "vtube_studio_plugin_name",
+                    "vtube_studio_plugin_developer",
+                    "vtube_studio_auth_token_path",
+                    "vtube_studio_timeout_sec",
+                }
+
                 if key in ("output_mode", "lmstudio_base_url", "lmstudio_model", "default_character_id"):
                     setattr(conv.settings, key, val)
                 elif key in ("short_memory_turns", "short_memory_max_chars", "short_memory_max_tokens", "max_session_count", "rag_top_k_episodes", "rag_top_k_log_messages", "tts_speaker", "tts_retry_max", "tts_text_limit", "llm_max_tokens", "llm_repeat_retry_max"):
@@ -295,12 +317,14 @@ def main() -> None:
                         return current_session, current_char_name
                 elif key in ("tts_base_url", "tts_output_dir", "tts_style", "tts_model_name"):
                     setattr(conv.settings, key, val)
-                elif key in ("tts_timeout_sec",):
+                elif key in ("tts_timeout_sec", "vtube_studio_timeout_sec"):
                     try:
                         setattr(conv.settings, key, float(val))
                     except ValueError:
                         controller.error("value must be float")
                         return current_session, current_char_name
+                elif key in ("avatar_backend", "vtube_studio_ws_url", "vtube_studio_plugin_name", "vtube_studio_plugin_developer", "vtube_studio_auth_token_path"):
+                    setattr(conv.settings, key, val)
                 elif key in ("db_path", "log_path"):
                     setattr(conv.settings, key, val)
                 elif key in ("tts_server_cwd",):
@@ -309,7 +333,7 @@ def main() -> None:
                     # value is a command line; split by spaces (no shell). For paths with spaces, set in config.yaml directly.
                     cmd_list = args[2:]
                     conv.settings.tts_server_start_cmd = cmd_list
-                elif key in ("tts_autoplay",):
+                elif key in ("tts_autoplay", "avatar_enabled"):
                     setattr(conv.settings, key, val.strip().lower() in ("1","true","yes","y","on"))
                 else:
                     controller.error("unknown key")
@@ -323,6 +347,8 @@ def main() -> None:
                 save_settings_to_yaml(conv.settings)
                 if key in tts_keys or conv.settings.tts_text_limit != prev_tts_limit:
                     refresh_tts_client()
+                if key in avatar_keys:
+                    avatar_motion = build_avatar_motion_service(conv.settings)
                 controller.info("config saved")
             else:
                 controller.error("usage: /config show | /config set KEY VALUE")
@@ -358,8 +384,11 @@ def main() -> None:
 
         return current_session, current_char_name
 
+    def on_reply(reply: StructuredReply) -> None:
+        avatar_motion.drive(reply.actions, reply.emotion)
+
     try:
-        controller.run(session, char_name, on_command, on_voice)
+        controller.run(session, char_name, on_command, on_voice, on_reply=on_reply)
     except Exception as e:
         log.exception("fatal: %s", e)
         print(f"[ERROR] fatal: {type(e).__name__}: {e}")

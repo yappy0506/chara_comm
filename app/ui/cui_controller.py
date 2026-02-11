@@ -34,7 +34,7 @@ class CUIController:
         sys.stdout.write(f"{char_name}: {utterance}\n")
         sys.stdout.flush()
 
-    def run(self, session: Session, char_name: str, on_command, on_voice) -> None:
+    def run(self, session: Session, char_name: str, on_command, on_voice, on_reply=None) -> None:
         while True:
             line = self.prompt(char_name)
             ri = route(line)
@@ -51,6 +51,8 @@ class CUIController:
 
             try:
                 reply = self.conversation.handle_turn(session, text)
+                if on_reply:
+                    on_reply(reply)
                 mode = self.conversation.settings.output_mode
                 if mode in ("text_voice", "text"):
                     self.say_text(char_name, reply.utterance)
