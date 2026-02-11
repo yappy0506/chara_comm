@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import dataclass
 from typing import Any
 
@@ -10,6 +11,22 @@ from tenacity import Retrying, retry_if_exception_type, stop_after_attempt, wait
 
 from app.domain.emotion import normalize_emotion_state
 from app.domain.models import StructuredReply
+
+
+def _format_utterance_one_sentence_per_line(text: str) -> str:
+    src = (text or "").replace("\r\n", "\n").replace("\r", "\n")
+    lines = [ln.strip() for ln in src.split("\n") if ln.strip()]
+    if not lines:
+        return ""
+
+    sentence_chunks: list[str] = []
+    for ln in lines:
+        # 句点系の終端ごとに分割し、1文1行に整える
+        parts = [p.strip() for p in re.split(r"(?<=[。！？!?])\s*", ln) if p.strip()]
+        if parts:
+            sentence_chunks.extend(parts)
+
+    return "\n".join(sentence_chunks).strip()
 
 
 @dataclass(frozen=True)
@@ -112,11 +129,16 @@ class LlmClient:
         try:
             data = json.loads(raw)
         except Exception:
-            return StructuredReply(utterance=raw, emotion=normalized_emotion, actions=[])
+            return StructuredReply(
+                utterance=_format_utterance_one_sentence_per_line(raw),
+                emotion=normalized_emotion,
+                actions=[],
+            )
 
         utterance = str(data.get("utterance", "")).strip() if isinstance(data, dict) else ""
         actions = data.get("actions", []) if isinstance(data, dict) and isinstance(data.get("actions"), list) else []
         em = normalize_emotion_state(data.get("emotion", {}) if isinstance(data, dict) else {})
         if not utterance:
             utterance = raw
+        utterance = _format_utterance_one_sentence_per_line(utterance)
         return StructuredReply(utterance=utterance, emotion=em, actions=actions)
