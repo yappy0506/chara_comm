@@ -1,11 +1,17 @@
 from __future__ import annotations
-import sqlite3, json
+
+import json
+import sqlite3
 from datetime import datetime, timezone
 from typing import Optional
-from app.domain.models import Session, Message
+
+from app.domain.emotion import normalize_emotion_state
+from app.domain.models import Message, Session
+
 
 def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
+
 
 class LogRepository:
     def __init__(self, conn: sqlite3.Connection):
@@ -13,13 +19,13 @@ class LogRepository:
 
     def upsert_session(self, session: Session) -> None:
         self.conn.execute(
-            """INSERT INTO sessions(session_id, character_id, title, created_at, updated_at)
-                 VALUES (?, ?, ?, ?, ?)
+            """INSERT INTO sessions(session_id, character_id, title, emotion_json, created_at, updated_at)
+                 VALUES (?, ?, ?, COALESCE((SELECT emotion_json FROM sessions WHERE session_id=?), '{}'), ?, ?)
                  ON CONFLICT(session_id) DO UPDATE SET
                    character_id=excluded.character_id,
                    title=COALESCE(excluded.title, sessions.title),
                    updated_at=excluded.updated_at""",
-            (session.id, session.character_id, session.title, _now_iso(), _now_iso())
+            (session.id, session.character_id, session.title, session.id, _now_iso(), _now_iso()),
         )
         self.conn.commit()
 
@@ -33,7 +39,13 @@ class LogRepository:
         ).fetchone()
         if not row:
             return None
-        return Session(id=row["session_id"], character_id=row["character_id"], title=row["title"], created_at=0.0, updated_at=0.0)
+        return Session(
+            id=row["session_id"],
+            character_id=row["character_id"],
+            title=row["title"],
+            created_at=0.0,
+            updated_at=0.0,
+        )
 
     def count_sessions(self) -> int:
         return int(self.conn.execute("SELECT COUNT(*) AS c FROM sessions").fetchone()["c"])
@@ -59,7 +71,7 @@ class LogRepository:
         self.conn.execute(
             """INSERT INTO messages(message_id, session_id, role, content, meta_json, created_at)
                  VALUES (?, ?, ?, ?, ?, ?)""",
-            (msg.id, msg.session_id, msg.role, msg.content, json.dumps(msg.meta, ensure_ascii=False), _now_iso())
+            (msg.id, msg.session_id, msg.role, msg.content, json.dumps(msg.meta, ensure_ascii=False), _now_iso()),
         )
         self.touch_session(msg.session_id)
         self.conn.commit()
@@ -69,7 +81,7 @@ class LogRepository:
             """SELECT message_id, role, content, meta_json
                  FROM messages WHERE session_id=?
                  ORDER BY created_at DESC LIMIT ?""",
-            (session_id, max(0, limit))
+            (session_id, max(0, limit)),
         ).fetchall()
         rows = list(reversed(rows))
         out: list[Message] = []
@@ -78,21 +90,42 @@ class LogRepository:
                 meta = json.loads(r["meta_json"] or "{}")
             except Exception:
                 meta = {}
-            out.append(Message(
-                id=r["message_id"],
-                session_id=session_id,
-                role=r["role"],
-                content=r["content"],
-                created_at=0.0,
-                meta=meta if isinstance(meta, dict) else {},
-            ))
+            out.append(
+                Message(
+                    id=r["message_id"],
+                    session_id=session_id,
+                    role=r["role"],
+                    content=r["content"],
+                    created_at=0.0,
+                    meta=meta if isinstance(meta, dict) else {},
+                )
+            )
         return out
 
+    def fetch_recent_message_texts(self, session_id: str, limit: int) -> list[tuple[str, str]]:
+        rows = self.conn.execute(
+            "SELECT role, content FROM messages WHERE session_id=? ORDER BY created_at DESC LIMIT ?",
+            (session_id, max(0, limit)),
+        ).fetchall()
+        return [(r["role"], r["content"]) for r in rows]
 
-def fetch_recent_message_texts(self, session_id: str, limit: int) -> list[tuple[str, str]]:
-    """Return (role, content) pairs for recent messages (newest first)."""
-    rows = self.conn.execute(
-        "SELECT role, content FROM messages WHERE session_id=? ORDER BY created_at DESC LIMIT ?",
-        (session_id, max(0, limit))
-    ).fetchall()
-    return [(r["role"], r["content"]) for r in rows]
+    def get_emotion_state(self, session_id: str) -> dict[str, int]:
+        row = self.conn.execute(
+            "SELECT emotion_json FROM sessions WHERE session_id=?",
+            (session_id,),
+        ).fetchone()
+        if not row:
+            return normalize_emotion_state({})
+        try:
+            raw = json.loads(row["emotion_json"] or "{}")
+        except Exception:
+            raw = {}
+        return normalize_emotion_state(raw)
+
+    def update_emotion_state(self, session_id: str, emotion: dict[str, int]) -> None:
+        normalized = normalize_emotion_state(emotion)
+        self.conn.execute(
+            "UPDATE sessions SET emotion_json=?, updated_at=? WHERE session_id=?",
+            (json.dumps(normalized, ensure_ascii=False), _now_iso(), session_id),
+        )
+        self.conn.commit()

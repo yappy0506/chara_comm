@@ -204,6 +204,16 @@ class PromptBuilder:
             for title, snip in rag_hits[:12]:
                 parts.append(f"- {title}: {snip}")
 
+
+        parts.append("")
+        parts.append("【Emotion Influence】")
+        parts.append("- Joy/Trustが高いほど、協力的で柔らかい語調を強める。")
+        parts.append("- Fearが高いほど、確認質問・慎重さ・リスク回避を強める。")
+        parts.append("- Surpriseは短命。状況整理を優先し、他感情へ分岐しやすい。")
+        parts.append("- Sadness/Disgustは残留しやすい。回復には具体的なきっかけが必要。")
+        parts.append("- Angerは攻撃的にせず、冷静な強さ・境界提示へ変換する。")
+        parts.append("- Anticipationが高いほど、次の一手・段取り提案を増やす。")
+
         parts.append("")
         parts.append("【Prohibited】")
         base_proh = _safe_list(_safe_dict(_safe_dict(speech_style.get("speech_style")).get("baseline")).get("prohibited"))
